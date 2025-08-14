@@ -29,21 +29,27 @@
   }).setView([39.5, -8], 7);
 
   // Carregar GeoJSON
-  fetch('concelhos.json')
-    .then(res => res.json())
-    .then(data => {
-      L.geoJSON(data, {
+ fetch('concelhos.json')
+  .then(res => res.json())
+  .then(data => {
+    // Se for GeometryCollection
+    data.geometries.forEach(geom => {
+      const feature = {
+        type: "Feature",
+        properties: { name: geom.properties?.name || "Sem nome" },
+        geometry: geom
+      };
+
+      L.geoJSON(feature, {
         style: () => ({ 
           color: '#556',
           weight: 1, 
           fillColor: '#ccc',
-          fillOpacity: 0.6
+          fillOpacity: 0.6 
         }),
         onEachFeature: (feature, layer) => {
           layer.on('click', () => {
             const nome = feature.properties.name;
-
-            // Gerar PDF
             const doc = new jsPDF();
             doc.setFontSize(22);
             doc.text(`Documento para o concelho de ${nome}`, 20, 30);
@@ -53,9 +59,9 @@
           });
         }
       }).addTo(map);
-    })
-    .catch(err => console.error('Erro ao carregar concelhos.json:', err));
-</script>
+    });
+  })
+  .catch(err => console.error('Erro ao carregar concelhos.json:', err));
 
 </body>
 </html>
