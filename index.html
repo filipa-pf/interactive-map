@@ -47,17 +47,32 @@
           fillColor: '#ccc',
           fillOpacity: 0.6 
         }),
-        onEachFeature: (feature, layer) => {
-          layer.on('click', () => {
-            const nome = feature.properties.name;
-            const doc = new jsPDF();
-            doc.setFontSize(22);
-            doc.text(`Documento para o concelho de ${nome}`, 20, 30);
-            doc.setFontSize(14);
-            doc.text("Este é um template automático.", 20, 50);
-            doc.save(`Concelho_${nome}.pdf`);
-          });
-        }
+  onEachFeature: (feature, layer) => {
+  // Clique
+  layer.on('click', () => {
+    const nome = feature.properties.name;
+    const doc = new jsPDF();
+    doc.setFontSize(22);
+    doc.text(`Documento para o concelho de ${nome}`, 20, 30);
+    doc.setFontSize(14);
+    doc.text("Este é um template automático.", 20, 50);
+    doc.save(`Concelho_${nome}.pdf`);
+  });
+
+  // Hover
+  layer.on('mouseover', () => {
+    layer.setStyle({
+      fillColor: '#faa', // cor quando o rato passa por cima
+      weight: 2
+    });
+  });
+  layer.on('mouseout', () => {
+    layer.setStyle({
+      fillColor: '#ccc', // cor original
+      weight: 1
+    });
+  });
+}
       }).addTo(map);
     });
   })
