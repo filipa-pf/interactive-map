@@ -38,17 +38,21 @@ html, body {
 /* MOBILE */
 @media (max-width: 768px) {
   .container {
-    flex-direction: column; /* coluna */
+    flex-direction: column;
   }
 
   #map,
   .info {
-    width: 100%;
-    flex: auuto; /* remove flex original */
+    flex: none;      /* remove o flex original */
+    width: 100%;     /* ocupa toda a largura */
   }
 
   #map {
-    height: 300px; /* altura do mapa mobile */
+    height: 300px;   /* altura do mapa no mobile */
+  }
+
+  .info {
+    height: auto;    /* altura natural do conteúdo */
   }
 }
 </style>
