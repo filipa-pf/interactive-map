@@ -42,7 +42,7 @@
   <div class="info">
     <h2>Info do concelho</h2>
     <div id="infoContent">
-      Clique num concelho para gerar um PDF com o nome do concelho.
+      Clique num concelho para ver informações.
     </div>
   </div>
 </div>
@@ -52,8 +52,32 @@
 <script>
 const { jsPDF } = window.jspdf;
 
-// Inicializar mapa sem tiles
+// Inicializar mapa
 const map = L.map('map', { zoomControl: true, attributionControl: false }).setView([39.5, -8], 7);
+
+// Cores por distrito
+const coresDistritos = {
+  "Aveiro": "#1f77b4",
+  "Beja": "#ff7f0e",
+  "Braga": "#2ca02c",
+  "Bragança": "#d62728",
+  "Castelo Branco": "#9467bd",
+  "Coimbra": "#8c564b",
+  "Évora": "#e377c2",
+  "Faro": "#7f7f7f",
+  "Guarda": "#bcbd22",
+  "Leiria": "#17becf",
+  "Lisboa": "#aec7e8",
+  "Portalegre": "#ffbb78",
+  "Porto": "#98df8a",
+  "Santarém": "#ff9896",
+  "Setúbal": "#c5b0d5",
+  "Viana do Castelo": "#c49c94",
+  "Vila Real": "#f7b6d2",
+  "Viseu": "#c7c7c7",
+  "Madeira": "#dbdb8d",
+  "Açores": "#9edae5"
+};
 
 // Função para buscar os concelhos da API Opendatasoft
 async function loadConcelhos() {
@@ -61,21 +85,41 @@ async function loadConcelhos() {
     const res = await fetch('https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/georef-portugal-concelho/exports/json');
     const data = await res.json();
 
-    // Mostrar na console o primeiro item completo
-    console.log('Primeiro concelho completo:', data[0]);
+    const geojsonLayer = L.geoJSON(data, {
+      style: feature => {
+        const distrito = feature.fields?.distrito || '';
+        return { 
+          color: '#000', 
+          weight: 1, 
+          fillOpacity: 0.5,
+          fillColor: coresDistritos[distrito] || '#ccc'
+        };
+      },
+      onEachFeature: (feature, layer) => {
+        const nome = feature.fields?.nome || 'Sem nome';
+        const distrito = feature.fields?.distrito || 'Sem distrito';
 
-    // Mostrar todos os concelhos
-    console.log('Todos os concelhos:', data);
+        layer.on('click', () => {
+          document.getElementById('infoContent').innerHTML = `
+            <strong>${nome}</strong><br>
+            Distrito: ${distrito}<br>
+            <button id="pdfBtn">Gerar PDF</button>
+          `;
 
-    // Se quiseres apenas os nomes e geometria:
-    data.forEach(item => {
-      console.log({
-        nome: item.fields.nome,
-        distrito: item.fields.distrito,
-        populacao: item.fields.populacao,
-        geometry: item.geometry
-      });
-    });
+          document.getElementById('pdfBtn').onclick = () => {
+            const doc = new jsPDF();
+            doc.text(`Concelho: ${nome}\nDistrito: ${distrito}`, 10, 10);
+            doc.save(`${nome}.pdf`);
+          };
+        });
+      }
+    }).addTo(map);
+
+    if (geojsonLayer.getBounds().isValid()) {
+      map.fitBounds(geojsonLayer.getBounds());
+    } else {
+      console.warn('Nenhuma geometria válida para fazer fitBounds.');
+    }
 
   } catch(err) {
     console.error('Erro ao carregar concelhos:', err);
