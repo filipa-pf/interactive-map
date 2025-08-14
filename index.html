@@ -15,13 +15,13 @@ html, body {
   display: flex;
   gap: 20px;
   padding: 10px;
-  flex-wrap: wrap; /* permite quebra de linha se necessário */
+  flex-wrap: wrap;
 }
 
 #map {
-  flex: 2 1 300px; /* grow, shrink, base */
+  flex: 2 1 300px;
   min-width: 300px;
-  height: 600px; /* altura desktop */
+  height: 600px;
 }
 
 .info {
@@ -43,7 +43,6 @@ html, body {
   .info { height: auto !important; }
 }
 </style>
-
 </head>
 <body>
 
@@ -62,10 +61,8 @@ html, body {
 <script>
 const { jsPDF } = window.jspdf;
 
-// Inicializar mapa
 const map = L.map('map', { zoomControl: true, attributionControl: false }).setView([39.5, -8], 7);
 
-// Cores por distrito
 const coresDistritos = {
   "Braga": "#f94144",
   "Porto": "#f3722c",
@@ -81,17 +78,16 @@ const coresDistritos = {
   "Faro": "#3a0ca3",
   "Castelo Branco": "#4361ee",
   "Guarda": "#4cc9f0",
-  "Açores": "#00b894"
+  "Açores": "#00b894",
+  "Madeira": "#e67e22"
 };
 
-// Função para escurecer cor
 function escurecerCor(cor, fator = 0.7) {
   const rgb = cor.match(/\w\w/g).map(x => parseInt(x, 16));
   const escuro = rgb.map(v => Math.floor(v * fator));
   return `rgb(${escuro.join(",")})`;
 }
 
-// Buscar concelhos da API Opendatasoft
 async function loadConcelhos() {
   try {
     const res = await fetch('https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/georef-portugal-concelho/exports/json');
@@ -121,11 +117,9 @@ async function loadConcelhos() {
         const distrito = feature.properties.dis_name || 'Sem distrito';
         const corOriginal = coresDistritos[distrito] || '#ccc';
 
-        // Hover
         layer.on('mouseover', () => layer.setStyle({ fillColor: escurecerCor(corOriginal) }));
         layer.on('mouseout', () => layer.setStyle({ fillColor: corOriginal }));
 
-        // Click
         layer.on('click', () => {
           document.getElementById('infoContent').innerHTML = `
             <strong>${nome}</strong><br>
@@ -142,11 +136,22 @@ async function loadConcelhos() {
       }
     }).addTo(map);
 
-    // Ajustar mapa para caber no container
+    // Garantir que todo o mapa (Portugal continental + ilhas) ocupa o container
     const bounds = geojsonLayer.getBounds();
     if (bounds.isValid && bounds.isValid()) {
-      map.fitBounds(bounds, { padding: [20, 20] });
+      map.fitBounds(bounds, {
+        padding: [20, 20], // espaço nas bordas
+        maxZoom: 10        // evita zoom demasiado próximo
+      });
     }
+
+    // Recalcular quando a janela muda de tamanho
+    window.addEventListener('resize', () => {
+      map.fitBounds(bounds, {
+        padding: [20, 20],
+        maxZoom: 10
+      });
+    });
 
   } catch(err) {
     console.error('Erro ao carregar concelhos:', err);
