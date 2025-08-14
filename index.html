@@ -1,92 +1,65 @@
 <!DOCTYPE html>
 <html lang="pt">
 <head>
-  <meta charset="UTF-8">
-  <title>Mapa Interativo dos Concelhos</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <style>
-    #map { height: 90vh; width: 100%; }
-    #infoBox {
-      position: absolute;
-      top: 10px; left: 10px;
-      padding: 10px;
-      background: white;
-      border: 1px solid #ccc;
-      z-index: 1000;
-      max-width: 250px;
-      font-family: sans-serif;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>Mapa Interativo de Concelhos</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+  body { margin: 0; display: flex; height: 100vh; }
+  #map { flex: 1; }
+  #info { width: 300px; padding: 10px; background: #f7f7f7; overflow-y: auto; }
+  .concelho-title { font-weight: bold; margin-top: 10px; }
+</style>
 </head>
 <body>
 
 <div id="map"></div>
-<div id="infoBox"><div id="infoContent">Clique num concelho</div></div>
+<div id="info"><h2>Info Concelho</h2><div id="details">Clique num concelho</div></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-  // Inicializar mapa
+  // Inicializa o mapa
   const map = L.map('map').setView([39.5, -8], 7);
 
+  // Camada base
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
 
-  // Grupo para todos os concelhos
-  const concelhosGroup = L.featureGroup().addTo(map);
+  // Função para atualizar info na coluna
+  function updateInfo(fields) {
+    const container = document.getElementById('details');
+    container.innerHTML = `
+      <div class="concelho-title">${fields.nome}</div>
+      <div>Distrito: ${fields.distrito || 'N/A'}</div>
+      <div>População: ${fields.populacao || 'N/A'}</div>
+    `;
+  }
 
-  // Fetch dos concelhos direto da API Opendatasoft
+  // Carrega todos os concelhos
   fetch('https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/georef-portugal-concelho/exports/json')
     .then(res => res.json())
     .then(data => {
+      const group = L.featureGroup(); // Para calcular bounds depois
+
       data.forEach(item => {
-        if (!item?.geometry) return; // Pular sem geometria
+        if (!item.geometry) return; // pula se não tiver geometria
 
-        const feature = {
-          type: "Feature",
-          properties: {
-            nome: item.fields.nome,
-            codigo: item.fields.codigo,
-            distrito: item.fields.distrito,
-            ano: item.fields.ano,
-            tipo: item.fields.tipo
-          },
-          geometry: item.geometry
-        };
+        const layer = L.geoJSON(item.geometry, {
+          style: { color: '#556', weight: 1, fillColor: '#ccc', fillOpacity: 0.6 }
+        }).addTo(map);
 
-        const layer = L.geoJSON(feature, {
-          style: () => ({
-            color: '#556',
-            weight: 1,
-            fillColor: '#ccc',
-            fillOpacity: 0.6
-          }),
-          onEachFeature: (feature, layer) => {
-            layer.on('click', () => {
-              const info = feature.properties;
-              document.getElementById('infoContent').innerHTML = `
-                <strong>Nome:</strong> ${info.nome}<br>
-                <strong>Distrito:</strong> ${info.distrito}<br>
-                <strong>Código:</strong> ${info.codigo}<br>
-                <strong>Ano:</strong> ${info.ano}<br>
-                <strong>Tipo:</strong> ${info.tipo}
-              `;
-            });
-            layer.on('mouseover', () => layer.setStyle({ fillColor: '#ffa' }));
-            layer.on('mouseout', () => layer.setStyle({ fillColor: '#ccc' }));
-          }
-        });
+        layer.on('click', () => updateInfo(item.fields));
 
-        concelhosGroup.addLayer(layer);
+        group.addLayer(layer);
       });
 
-      // Ajustar zoom para todos os concelhos
-      if (concelhosGroup.getLayers().length) {
-        map.fitBounds(concelhosGroup.getBounds());
+      // Ajusta zoom para todos os polígonos
+      if (group.getLayers().length > 0) {
+        map.fitBounds(group.getBounds());
       }
     })
-    .catch(err => console.error('Erro ao carregar concelhos:', err));
-
+    .catch(err => console.error('Erro:', err));
 </script>
 
 </body>
