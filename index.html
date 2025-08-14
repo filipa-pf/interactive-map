@@ -99,41 +99,43 @@ async function loadConcelhos() {
     const res = await fetch('https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/georef-portugal-concelho/exports/json');
     const data = await res.json();
 
-    const geojsonData = data.map(d => {
-      const feature = d.geo_shape;
-      feature.properties = { con_name: d.con_name, dis_name: d.dis_name };
-      return deslocarIlhas(feature);
-    });
+const geojsonData = data
+  .filter(d => d.dis_name !== 'Açores' && d.dis_name !== 'Madeira') // remove ilhas
+  .map(d => {
+    const feature = d.geo_shape;
+    feature.properties = { con_name: d.con_name, dis_name: d.dis_name };
+    return feature; 
+  });
 
     const geojsonLayer = L.geoJSON(geojsonData, {
-      style: feature => {
-        const district = feature.properties.dis_name;
-        return {
-          color: '#000',
-          weight: 1,
-          fillOpacity: 0.6,
-          fillColor: coresDistritos[district] || '#ccc'
-        };
-      },
-      onEachFeature: (feature, layer) => {
-        const { con_name, dis_name } = feature.properties;
-        const cor = coresDistritos[dis_name] || '#ccc';
-        layer.on('mouseover', () => layer.setStyle({ fillColor: escurecerCor(cor) }));
-        layer.on('mouseout', () => layer.setStyle({ fillColor: cor }));
-        layer.on('click', () => {
-          document.getElementById('infoContent').innerHTML = 
-            `<strong>${con_name}</strong><br>Distrito: ${dis_name}<br><button id="pdfBtn">Gerar PDF</button>`;
-          document.getElementById('pdfBtn').onclick = () => {
-            const doc = new jsPDF();
-            doc.text(`Concelho: ${con_name}\nDistrito: ${dis_name}`, 10, 10);
-            doc.save(`${con_name}.pdf`);
-          };
-        });
-      }
-    }).addTo(map);
+  style: feature => {
+    const district = feature.properties.dis_name;
+    return {
+      color: '#000',
+      weight: 1,
+      fillOpacity: 0.6,
+      fillColor: coresDistritos[district] || '#ccc'
+    };
+  },
+  onEachFeature: (feature, layer) => {
+    const { con_name, dis_name } = feature.properties;
+    const cor = coresDistritos[dis_name] || '#ccc';
+    layer.on('mouseover', () => layer.setStyle({ fillColor: escurecerCor(cor) }));
+    layer.on('mouseout', () => layer.setStyle({ fillColor: cor }));
+    layer.on('click', () => {
+      document.getElementById('infoContent').innerHTML = 
+        `<strong>${con_name}</strong><br>Distrito: ${dis_name}<br><button id="pdfBtn">Gerar PDF</button>`;
+      document.getElementById('pdfBtn').onclick = () => {
+        const doc = new jsPDF();
+        doc.text(`Concelho: ${con_name}\nDistrito: ${dis_name}`, 10, 10);
+        doc.save(`${con_name}.pdf`);
+      };
+    });
+  }
+}).addTo(map);
 
-    // Ajusta zoom e centro automaticamente para caber no container
-    map.fitBounds(geojsonLayer.getBounds(), { padding: [20, 20], maxZoom: 9 });
+// Zoom ajustado só para o continente
+map.fitBounds(geojsonLayer.getBounds(), { padding: [20, 20], maxZoom: 10 });
 
   } catch (err) {
     console.error('Erro ao carregar concelhos:', err);
