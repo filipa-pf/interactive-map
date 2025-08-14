@@ -7,7 +7,6 @@
 <style>
   #map { height: 600px; width: 60%; float: left; }
   .info { width: 35%; float: left; padding-left: 20px; }
-  .concelho:hover { fill: #faa !important; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -23,48 +22,53 @@
 <script>
   const { jsPDF } = window.jspdf;
 
-  const map = L.map('map', {
-    zoomControl: true,
-    attributionControl: false
-  }).setView([39.5, -8], 7);
+  // Inicializar mapa
+  const map = L.map('map', { zoomControl: true, attributionControl: false }).setView([39.5, -8], 7);
 
-  // Carregar GeoJSON
-fetch('concelhos.json')
-  .then(res => res.json())
-  .then(data => {
-    data.geometries.forEach((geom, i) => {
-      const feature = {
-        type: "Feature",
-        properties: { name: `Concelho ${i+1}` }, // you can replace with actual names
-        geometry: geom
-      };
+  fetch('concelhos.json')
+    .then(res => res.json())
+    .then(data => {
+      if (data.type === "GeometryCollection") {
+        const layers = [];
 
-      L.geoJSON(feature, {
-        style: () => ({
-          color: '#556',
-          weight: 1,
-          fillColor: '#ccc',
-          fillOpacity: 0.6
-        }),
-        onEachFeature: (feature, layer) => {
-          // click to download PDF
-          layer.on('click', () => {
-            const nome = feature.properties.name;
-            const doc = new jsPDF();
-            doc.setFontSize(22);
-            doc.text(`Documento para o concelho de ${nome}`, 20, 30);
-            doc.setFontSize(14);
-            doc.text("Este é um template automático.", 20, 50);
-            doc.save(`Concelho_${nome}.pdf`);
-          });
+        data.geometries.forEach((geom, i) => {
+          const feature = {
+            type: "Feature",
+            properties: { name: `Concelho ${i+1}` },
+            geometry: geom
+          };
 
-          // hover highlight
-          layer.on('mouseover', () => layer.setStyle({ fillColor: '#faa', weight: 2 }));
-          layer.on('mouseout', () => layer.setStyle({ fillColor: '#ccc', weight: 1 }));
-        }
-      }).addTo(map);
-    });
-  })
-  .catch(err => console.error('Erro:', err));
+          const layer = L.geoJSON(feature, {
+            style: { color: '#556', weight: 1, fillColor: '#ccc', fillOpacity: 0.6 },
+            onEachFeature: (feature, layer) => {
+              // clique para gerar PDF
+              layer.on('click', () => {
+                const doc = new jsPDF();
+                doc.setFontSize(22);
+                doc.text(`Documento para o concelho de ${feature.properties.name}`, 20, 30);
+                doc.setFontSize(14);
+                doc.text("Este é um template automático.", 20, 50);
+                doc.save(`Concelho_${feature.properties.name}.pdf`);
+              });
+
+              // hover highlight
+              layer.on('mouseover', () => layer.setStyle({ fillColor: '#faa', weight: 2 }));
+              layer.on('mouseout', () => layer.setStyle({ fillColor: '#ccc', weight: 1 }));
+            }
+          }).addTo(map);
+
+          layers.push(layer);
+        });
+
+        // Ajustar zoom para mostrar todos os concelhos
+        const group = L.featureGroup(layers);
+        map.fitBounds(group.getBounds());
+      } else {
+        console.error("JSON não é um GeometryCollection!");
+      }
+    })
+    .catch(err => console.error('Erro ao carregar JSON:', err));
+</script>
+
 </body>
 </html>
