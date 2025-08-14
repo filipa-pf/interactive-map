@@ -39,6 +39,16 @@ html, body {
   cursor: pointer;
 }
 
+/* inset maps */
+.inset-map {
+  width: 150px;
+  height: 120px;
+  border: 2px solid #333;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #fff;
+}
+
 /* MOBILE */
 @media (max-width: 768px) {
   .container { flex-direction: column !important; }
@@ -64,7 +74,6 @@ html, body {
 <script>
 const { jsPDF } = window.jspdf;
 
-// mapa Leaflet principal (escondido por baixo)
 const map = L.map('map', { zoomControl: true, attributionControl: false }).setView([39.5, -8], 7);
 
 const coresDistritos = {
@@ -90,41 +99,46 @@ function escurecerCor(cor, fator = 0.7) {
   const rgb = cor.match(/\w\w/g).map(x => parseInt(x, 16));
   const escuro = rgb.map(v => Math.floor(v * fator));
   return `rgb(${escuro.join(",")})`;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 }
 
 async function loadConcelhos() {
+
+
+
   try {
     const res = await fetch('https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/georef-portugal-concelho/exports/json');
     const data = await res.json();
 
-    const geojsonData = data.results.map(d => {
+    const geojsonData = data.map(d => {
+      console.log('Concelho:', d.con_name, '| Distrito:', d.dis_name); 
+
       const feature = d.geo_shape;
       feature.properties = {
         con_name: d.con_name,
         dis_name: d.dis_name
       };
-
-      // ----------------------------
-      // Ajuste para aproximar Açores e Madeira
-      // ----------------------------
-      if(d.dis_name === "Açores") {
-        // desloca Açores para mais perto do continente
-        feature.coordinates = feature.coordinates.map(polygon => 
-          polygon.map(ring => 
-            ring.map(coord => [coord[0] + 15, coord[1] + 7])
-          )
-        );
-      }
-      if(d.dis_name === "Madeira") {
-        // desloca Madeira para mais perto do continente
-        feature.coordinates = feature.coordinates.map(polygon => 
-          polygon.map(ring => 
-            ring.map(coord => [coord[0] + 5, coord[1] + 3])
-          )
-        );
-      }
-
       return feature;
+
+
+
+
+
+
     });
 
     const geojsonLayer = L.geoJSON(geojsonData, {
@@ -176,11 +190,51 @@ async function loadConcelhos() {
       });
     });
 
-    // inset maps removidos, geometria ajustada
+    // -------------------------------
+    // Inset maps for Açores and Madeira
+    // -------------------------------
+    function createInsetMap(position, center, zoom, distrito) {
+      const InsetControl = L.Control.extend({
+        onAdd: function() {
+          const div = L.DomUtil.create('div', 'inset-map');
+          return div;
+        },
+        options: { position }
+      });
+
+      const control = new InsetControl();
+      control.addTo(map);
+
+      const inset = L.map(control.getContainer(), {
+        attributionControl: false,
+        zoomControl: false,
+        dragging: false,
+        scrollWheelZoom: false,
+        doubleClickZoom: false,
+        boxZoom: false,
+        keyboard: false,
+        tap: false
+      }).setView(center, zoom);
+
+      // add simple tile layer
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: ''
+      }).addTo(inset);
+
+      return inset;
+    }
+
+    // Azores inset
+    createInsetMap('topright', [38.5, -28], 7, 'Açores');
+
+    // Madeira inset
+    createInsetMap('bottomright', [32.75, -17], 8, 'Madeira');
+
   } catch(err) {
     console.error('Erro ao carregar concelhos:', err);
   }
 }
+
 
 loadConcelhos();
 </script>
