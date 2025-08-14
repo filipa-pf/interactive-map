@@ -23,7 +23,7 @@
   }).addTo(map);
 
   // carregar GeoJSON
-  fetch('concelhos.geojson')
+  fetch('concelhos.json')
     .then(res => res.json())
     .then(data => {
       L.geoJSON(data, {
