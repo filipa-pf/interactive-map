@@ -70,30 +70,20 @@ let concelhosMap = {};
 
 // Função para carregar todos os concelhos via API
 async function loadAllConcelhos() {
-  let offset = 0;
-  const limit = 100;
-  let totalRecords = 1; // inicializamos >0 para entrar no loop
+  const url = `https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/georef-portugal-concelho/records?limit=100`;
+  const res = await fetch(url);
+  const data = await res.json();
 
-  while(offset < totalRecords) {
-    const url = `https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/georef-portugal-concelho/records?limit=${limit}&offset=${offset}`;
-    const res = await fetch(url);
-    const data = await res.json();
+  console.log(data); // <- aqui vamos ver a estrutura real
 
-    if(!data.records) break;
-
+  if(data.records && data.records.length) {
     data.records.forEach(r => {
-      const fields = r.record?.fields;
-      if(fields && fields.codigo != null){
-        concelhosMap[fields.codigo] = fields;
-      }
+      console.log(r); // cada registo individual
     });
-
-    totalRecords = data.nhits;
-    offset += limit;
   }
-
-  console.log('Todos concelhos carregados:', Object.keys(concelhosMap).length);
 }
+
+loadAllConcelhos();
 
 // Função para carregar o GeoJSON dos concelhos e adicionar ao mapa
 async function loadGeoJSON() {
