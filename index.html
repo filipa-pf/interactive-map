@@ -5,17 +5,23 @@
 <title>Mapa Interativo de Portugal</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 <style>
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
 .container {
   display: flex;
   flex-wrap: wrap;
   gap: 20px;
   padding: 10px;
+  height: 100vh; /* ocupa toda a altura da viewport */
 }
 
 #map {
   flex: 2;
   min-width: 300px;
-  height: 630px;
+  height: 100%;
 }
 
 .info {
@@ -23,14 +29,17 @@
   min-width: 250px;
   padding: 20px;
   background: #f8f8f8;
+  overflow-y: auto;
 }
 
 .concelho {
-
   cursor: pointer;
 }
 
 @media (max-width: 768px) {
+  .container {
+    flex-direction: column;
+  }
   #map { height: 400px; }
 }
 </style>
@@ -87,9 +96,6 @@ async function loadConcelhos() {
     const res = await fetch('https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/georef-portugal-concelho/exports/json');
     const data = await res.json();
 
-
-    console.log('Dados completos da API:', data);
-
     const geojsonData = data.map(d => {
       const feature = d.geo_shape;
       feature.properties = {
@@ -98,7 +104,6 @@ async function loadConcelhos() {
       };
       return feature;
     });
-
 
     const geojsonLayer = L.geoJSON(geojsonData, {
       style: feature => {
@@ -136,12 +141,10 @@ async function loadConcelhos() {
       }
     }).addTo(map);
 
-    // Ajustar para caber no container
+    // Ajustar mapa para caber no container
     const bounds = geojsonLayer.getBounds();
     if (bounds.isValid && bounds.isValid()) {
       map.fitBounds(bounds, { padding: [20, 20] });
-    } else {
-      console.warn('Nenhuma geometria válida para fazer fitBounds.');
     }
 
   } catch(err) {
