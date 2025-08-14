@@ -8,7 +8,7 @@
 /* Container que envolve mapa e info */
 .container {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: wrap; /* permite que elementos quebrem linha em telas pequenas */
   gap: 20px;
   padding: 10px;
   box-sizing: border-box;
@@ -65,84 +65,68 @@ const { jsPDF } = window.jspdf;
 const map = L.map('map', { zoomControl: true, attributionControl: false })
   .setView([39.5, -8], 7);
 
-// Armazenar todos os concelhos
-let concelhosMap = {};
-
-// Função para carregar todos os concelhos via API
-async function loadAllConcelhos() {
-  const url = `https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/georef-portugal-concelho/records?limit=100`;
+// Função para buscar info extra via API
+async function fetchConcelhoInfo(codigo) {
+  const url = `https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/georef-portugal-concelho/records?limit=100&offset=0&filter[codigo]=${codigo}`;
   const res = await fetch(url);
   const data = await res.json();
-
-  console.log(data); // <- aqui vamos ver a estrutura real
-
-  if(data.records && data.records.length) {
-    data.records.forEach(r => {
-      console.log(r); // cada registo individual
-    });
+  if(data.results && data.results.length > 0){
+    return data.results[0].fields;
   }
+  return null;
 }
 
-loadAllConcelhos();
+// Carregar GeoJSON (ou ficheiro que contém geometria dos concelhos)
+fetch('concelhos.json')
+  .then(res => res.json())
+  .then(async geoData => {
 
-// Função para carregar o GeoJSON dos concelhos e adicionar ao mapa
-async function loadGeoJSON() {
-  const res = await fetch('concelhos.json'); // teu GeoJSON local
-  const geoData = await res.json();
+    // Criar um layer por concelho
+    geoData.features.forEach(feature => {
+      const codigo = feature.properties.codigo;
 
-  geoData.geometries.forEach(geom => {
-    const codigo = geom.properties?.codigo || Math.floor(Math.random()*10000);
-    const feature = {
-      type: "Feature",
-      properties: { codigo: codigo, name: `Concelho ${codigo}` },
-      geometry: geom
-    };
+      L.geoJSON(feature, {
+        style: () => ({
+          color: '#556',
+          weight: 1,
+          fillColor: '#ccc',
+          fillOpacity: 0.6
+        }),
+        onEachFeature: (feature, layer) => {
+          layer.on('click', async () => {
+            const info = await fetchConcelhoInfo(feature.properties.codigo);
+            if(info){
+              const content = `
+                <strong>Nome Concelho:</strong> ${info.nome}<br>
+                <strong>Distrito:</strong> ${info.distrito}<br>
+                <strong>Código:</strong> ${info.codigo}<br>
+                <strong>Ano:</strong> ${info.ano}<br>
+                <strong>Tipo:</strong> ${info.tipo}
+              `;
+              document.getElementById('infoContent').innerHTML = content;
 
-    L.geoJSON(feature, {
-      style: () => ({
-        color: '#556',
-        weight: 1,
-        fillColor: '#ccc',
-        fillOpacity: 0.6
-      }),
-      onEachFeature: (feature, layer) => {
-        layer.on('click', () => {
-          const info = concelhosMap[feature.properties.codigo];
-          if(info){
-            const content = `
-              <strong>Nome Concelho:</strong> ${info.nome}<br>
-              <strong>Distrito:</strong> ${info.distrito}<br>
-              <strong>Código:</strong> ${info.codigo}<br>
-              <strong>Ano:</strong> ${info.ano}<br>
-              <strong>Tipo:</strong> ${info.tipo}
-            `;
-            document.getElementById('infoContent').innerHTML = content;
+              const doc = new jsPDF();
+              doc.setFontSize(22);
+              doc.text(`Documento do concelho de ${info.nome}`, 20, 30);
+              doc.setFontSize(14);
+              doc.text(`Distrito: ${info.distrito}`, 20, 50);
+              doc.text(`Código: ${info.codigo}`, 20, 60);
+              doc.text(`Ano: ${info.ano}`, 20, 70);
+              doc.text(`Tipo: ${info.tipo}`, 20, 80);
+              doc.save(`Concelho_${info.nome}.pdf`);
+            } else {
+              alert('Info não encontrada para este concelho.');
+            }
+          });
 
-            const doc = new jsPDF();
-            doc.setFontSize(22);
-            doc.text(`Documento do concelho de ${info.nome}`, 20, 30);
-            doc.setFontSize(14);
-            doc.text(`Distrito: ${info.distrito}`, 20, 50);
-            doc.text(`Código: ${info.codigo}`, 20, 60);
-            doc.text(`Ano: ${info.ano}`, 20, 70);
-            doc.text(`Tipo: ${info.tipo}`, 20, 80);
-            doc.save(`Concelho_${info.nome}.pdf`);
-          } else {
-            alert('Info não encontrada para este concelho.');
-          }
-        });
+          layer.on('mouseover', () => layer.setStyle({ fillColor: '#faa', weight: 2 }));
+          layer.on('mouseout', () => layer.setStyle({ fillColor: '#ccc', weight: 1 }));
+        }
+      }).addTo(map);
+    });
 
-        layer.on('mouseover', () => layer.setStyle({ fillColor: '#faa', weight: 2 }));
-        layer.on('mouseout', () => layer.setStyle({ fillColor: '#ccc', weight: 1 }));
-      }
-    }).addTo(map);
-  });
-}
-
-// Carregar API e GeoJSON
-loadAllConcelhos().then(() => {
-  loadGeoJSON();
-});
+  })
+  .catch(err => console.error('Erro:', err));
 </script>
 </body>
 </html>
