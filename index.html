@@ -1,66 +1,113 @@
 <!DOCTYPE html>
-<html lang="pt">
+<html>
 <head>
 <meta charset="UTF-8">
-<title>Mapa Interativo de Concelhos</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<title>Mapa Interativo de Portugal</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 <style>
-  body { margin: 0; display: flex; height: 100vh; }
-  #map { flex: 1; }
-  #info { width: 300px; padding: 10px; background: #f7f7f7; overflow-y: auto; }
-  .concelho-title { font-weight: bold; margin-top: 10px; }
+.container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding: 10px;
+}
+
+#map {
+  flex: 2;
+  min-width: 300px;
+  height: 630px;
+}
+
+.info {
+  flex: 1;
+  min-width: 250px;
+  padding: 20px;
+  background: #f8f8f8;
+}
+
+.concelho:hover {
+  fill: #faa !important;
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  #map { height: 400px; }
+}
 </style>
 </head>
 <body>
 
-<div id="map"></div>
-<div id="info"><h2>Info Concelho</h2><div id="details">Clique num concelho</div></div>
+<div class="container">
+  <div id="map"></div>
+  <div class="info">
+    <h2>Info do concelho</h2>
+    <div id="infoContent">
+      Clique num concelho para gerar um PDF com o nome do concelho.
+    </div>
+  </div>
+</div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
-  // Inicializa o mapa
-  const map = L.map('map').setView([39.5, -8], 7);
+const { jsPDF } = window.jspdf;
 
-  // Camada base
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors'
-  }).addTo(map);
+// Inicializar mapa sem tiles
+const map = L.map('map', { zoomControl: true, attributionControl: false }).setView([39.5, -8], 7);
 
-  // Função para atualizar info na coluna
-  function updateInfo(fields) {
-    const container = document.getElementById('details');
-    container.innerHTML = `
-      <div class="concelho-title">${fields.nome}</div>
-      <div>Distrito: ${fields.distrito || 'N/A'}</div>
-      <div>População: ${fields.populacao || 'N/A'}</div>
-    `;
-  }
+// Função para buscar os concelhos da API Opendatasoft
+async function loadConcelhos() {
+  try {
+    const res = await fetch('https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/georef-portugal-concelho/exports/json');
+    const data = await res.json();
 
-  // Carrega todos os concelhos
-  fetch('https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/georef-portugal-concelho/exports/json')
-    .then(res => res.json())
-    .then(data => {
-      const group = L.featureGroup(); // Para calcular bounds depois
+    const polygons = [];
 
-      data.forEach(item => {
-        if (!item.geometry) return; // pula se não tiver geometria
-
+    data.forEach(item => {
+      if(item.geometry) {
         const layer = L.geoJSON(item.geometry, {
-          style: { color: '#556', weight: 1, fillColor: '#ccc', fillOpacity: 0.6 }
+          style: {
+            color: '#556',
+            weight: 1,
+            fillColor: '#ccc',
+            fillOpacity: 0.6
+          }
         }).addTo(map);
 
-        layer.on('click', () => updateInfo(item.fields));
+        layer.on('click', () => {
+          const content = `
+            <strong>Nome Concelho:</strong> ${item.fields.nome}<br>
+            <strong>Distrito:</strong> ${item.fields.distrito}<br>
+            <strong>População:</strong> ${item.fields.populacao || 'N/A'}<br>
+          `;
+          document.getElementById('infoContent').innerHTML = content;
 
-        group.addLayer(layer);
-      });
+          const doc = new jsPDF();
+          doc.setFontSize(22);
+          doc.text(`Documento do concelho de ${item.fields.nome}`, 20, 30);
+          doc.setFontSize(14);
+          doc.text(`Distrito: ${item.fields.distrito}`, 20, 50);
+          doc.text(`População: ${item.fields.populacao || 'N/A'}`, 20, 60);
+          doc.save(`Concelho_${item.fields.nome}.pdf`);
+        });
 
-      // Ajusta zoom para todos os polígonos
-      if (group.getLayers().length > 0) {
-        map.fitBounds(group.getBounds());
+        layer.on('mouseover', () => layer.setStyle({ fillColor: '#faa', weight: 2 }));
+        layer.on('mouseout', () => layer.setStyle({ fillColor: '#ccc', weight: 1 }));
+
+        polygons.push(layer);
       }
-    })
-    .catch(err => console.error('Erro:', err));
-</script>
+    });
 
+    // Ajustar zoom para todos os concelhos
+    const group = L.featureGroup(polygons);
+    map.fitBounds(group.getBounds());
+
+  } catch(err) {
+    console.error('Erro ao carregar concelhos:', err);
+  }
+}
+
+loadConcelhos();
+</script>
 </body>
 </html>
