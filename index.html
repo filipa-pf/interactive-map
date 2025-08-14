@@ -97,7 +97,7 @@ async function loadConcelhos() {
     const res = await fetch('https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/georef-portugal-concelho/exports/json');
     const data = await res.json();
 
-    const geojsonData = data.map(d => {
+    const geojsonData = data.results.map(d => {
       const feature = d.geo_shape;
       feature.properties = {
         con_name: d.con_name,
