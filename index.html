@@ -53,23 +53,23 @@ const map = L.map('map', { zoomControl: true, attributionControl: false })
   .setView([39.5, -8], 7);
 
 // Função para buscar todos os concelhos via API
-async function fetchAllConcelhos() {
-  const datasetId = "georef-portugal-concelho";
-  const baseUrl = `https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/${datasetId}/records`;
-  let allRecords = [];
-  let limit = 100;
-  let offset = 0;
-  let total = 0;
-
-  do {
-    const res = await fetch(`${baseUrl}?limit=${limit}&offset=${offset}`);
+async function fetchConcelhoInfo(codigo) {
+  const url = `https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/georef-portugal-concelho/records/?filter[codigo]=${codigo}`;
+  try {
+    const res = await fetch(url);
     const data = await res.json();
-    allRecords = allRecords.concat(data.records);
-    total = data.nhits;
-    offset += limit;
-  } while (offset < total);
 
-  return allRecords;
+    if (data.records && data.records.length > 0) {
+      // check if record exists
+      const record = data.records[0].record || data.records[0];
+      const fields = record.fields || record;
+      return fields;
+    }
+    return null;
+  } catch (err) {
+    console.error('Erro ao buscar info do concelho:', err);
+    return null;
+  }
 }
 
 // Desenhar concelhos no mapa
