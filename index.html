@@ -22,7 +22,7 @@ html, body {
   flex: 2 1 300px;
   min-width: 300px;
   height: 600px;
-  position: relative;
+  background: #f0f0f0; /* mapa “em branco” */
 }
 
 .info {
@@ -35,16 +35,6 @@ html, body {
 
 .concelho {
   cursor: pointer;
-}
-
-/* inset maps */
-.inset-map {
-  width: 150px;
-  height: 120px;
-  border: 2px solid #333;
-  border-radius: 4px;
-  overflow: hidden;
-  background: #fff;
 }
 
 /* MOBILE */
@@ -72,8 +62,10 @@ html, body {
 <script>
 const { jsPDF } = window.jspdf;
 
+// Mapa sem tiles
 const map = L.map('map', { zoomControl: true, attributionControl: false }).setView([39.5, -8], 7);
 
+// Cores por distrito
 const coresDistritos = {
   "Braga": "#f94144",
   "Porto": "#f3722c",
@@ -93,10 +85,19 @@ const coresDistritos = {
   "Madeira": "#e67e22"
 };
 
+// Função para escurecer cor
 function escurecerCor(cor, fator = 0.7) {
   const rgb = cor.match(/\w\w/g).map(x => parseInt(x, 16));
   const escuro = rgb.map(v => Math.floor(v * fator));
   return `rgb(${escuro.join(",")})`;
+}
+
+// Função para deslocar ilhas
+function deslocarCoordenadas(coords, deltaLng, deltaLat) {
+  return coords.map(p => Array.isArray(p[0])
+    ? deslocarCoordenadas(p, deltaLng, deltaLat)
+    : [p[0] + deltaLng, p[1] + deltaLat]
+  );
 }
 
 async function loadConcelhos() {
@@ -105,12 +106,19 @@ async function loadConcelhos() {
     const data = await res.json();
 
     const geojsonData = data.map(d => {
-      console.log('Concelho:', d.con_name, '| Distrito:', d.dis_name); 
       const feature = d.geo_shape;
       feature.properties = {
         con_name: d.con_name,
         dis_name: d.dis_name
       };
+
+      // Deslocar Açores e Madeira
+      if (d.dis_name === "Açores") {
+        feature.geometry.coordinates = deslocarCoordenadas(feature.geometry.coordinates, -10, 4);
+      } else if (d.dis_name === "Madeira") {
+        feature.geometry.coordinates = deslocarCoordenadas(feature.geometry.coordinates, -9, -6);
+      }
+
       return feature;
     });
 
@@ -138,7 +146,6 @@ async function loadConcelhos() {
             Distrito: ${distrito}<br>
             <button id="pdfBtn">Gerar PDF</button>
           `;
-
           document.getElementById('pdfBtn').onclick = () => {
             const doc = new jsPDF();
             doc.text(`Concelho: ${nome}\nDistrito: ${distrito}`, 10, 10);
@@ -148,60 +155,17 @@ async function loadConcelhos() {
       }
     }).addTo(map);
 
-    const bounds = geojsonLayer.getBounds();
-    if (bounds.isValid && bounds.isValid()) {
-      map.fitBounds(bounds, {
-        padding: [20, 20],
-        maxZoom: 10
-      });
-    }
+    // Ajustar fitBounds apenas para o continente
+    const continenteLayer = geojsonLayer.getLayers().filter(l => {
+      const distrito = l.feature.properties.dis_name;
+      return distrito !== "Açores" && distrito !== "Madeira";
+    });
+    const boundsContinente = L.featureGroup(continenteLayer).getBounds();
+    map.fitBounds(boundsContinente, { padding: [20,20], maxZoom: 10 });
 
     window.addEventListener('resize', () => {
-      map.fitBounds(bounds, {
-        padding: [20, 20],
-        maxZoom: 10
-      });
+      map.fitBounds(boundsContinente, { padding: [20,20], maxZoom: 10 });
     });
-
-    // -------------------------------
-    // Inset maps for Açores and Madeira
-    // -------------------------------
-    function createInsetMap(position, center, zoom, distrito) {
-      const InsetControl = L.Control.extend({
-        onAdd: function() {
-          const div = L.DomUtil.create('div', 'inset-map');
-          return div;
-        },
-        options: { position }
-      });
-
-      const control = new InsetControl();
-      control.addTo(map);
-
-      const inset = L.map(control.getContainer(), {
-        attributionControl: false,
-        zoomControl: false,
-        dragging: false,
-        scrollWheelZoom: false,
-        doubleClickZoom: false,
-        boxZoom: false,
-        keyboard: false,
-        tap: false
-      }).setView(center, zoom);
-
-      // add simple tile layer
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: ''
-      }).addTo(inset);
-
-      return inset;
-    }
-
-    // Azores inset
-    createInsetMap('topright', [38.5, -28], 7, 'Açores');
-
-    // Madeira inset
-    createInsetMap('bottomright', [32.75, -17], 8, 'Madeira');
 
   } catch(err) {
     console.error('Erro ao carregar concelhos:', err);
