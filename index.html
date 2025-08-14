@@ -25,8 +25,7 @@
   background: #f8f8f8;
 }
 
-.concelho:hover {
-  fill: #faa !important;
+.concelho {
   cursor: pointer;
 }
 
@@ -74,24 +73,29 @@ const coresDistritos = {
   "Açores": "#00b894"
 };
 
+// Função para escurecer cor
+function escurecerCor(cor, fator = 0.7) {
+  const rgb = cor.match(/\w\w/g).map(x => parseInt(x, 16));
+  const escuro = rgb.map(v => Math.floor(v * fator));
+  return `rgb(${escuro.join(",")})`;
+}
+
 // Buscar concelhos da API Opendatasoft
 async function loadConcelhos() {
   try {
     const res = await fetch('https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/georef-portugal-concelho/exports/json');
     const data = await res.json();
 
-    // MOSTRAR TODOS OS DADOS DA API
     console.log('Dados completos da API:', data);
 
-    // Extraí apenas a geometria (geo_shape) de cada concelho
-   const geojsonData = data.map(d => {
-  const feature = d.geo_shape;
-  feature.properties = {
-    con_name: d.con_name,
-    dis_name: d.dis_name
-  };
-  return feature;
-});
+    const geojsonData = data.map(d => {
+      const feature = d.geo_shape;
+      feature.properties = {
+        con_name: d.con_name,
+        dis_name: d.dis_name
+      };
+      return feature;
+    });
 
     const geojsonLayer = L.geoJSON(geojsonData, {
       style: feature => {
@@ -99,21 +103,26 @@ async function loadConcelhos() {
         return { 
           color: '#000', 
           weight: 1, 
-          fillOpacity: 0.5,
+          fillOpacity: 0.6,
           fillColor: coresDistritos[distrito] || '#ccc'
         };
       },
       onEachFeature: (feature, layer) => {
         const nome = feature.properties.con_name || 'Sem nome';
         const distrito = feature.properties.dis_name || 'Sem distrito';
-        
+        const corOriginal = coresDistritos[distrito] || '#ccc';
+
+        // Hover
+        layer.on('mouseover', () => layer.setStyle({ fillColor: escurecerCor(corOriginal) }));
+        layer.on('mouseout', () => layer.setStyle({ fillColor: corOriginal }));
+
+        // Click
         layer.on('click', () => {
           document.getElementById('infoContent').innerHTML = `
             <strong>${nome}</strong><br>
             Distrito: ${distrito}<br>
             <button id="pdfBtn">Gerar PDF</button>
           `;
-
           document.getElementById('pdfBtn').onclick = () => {
             const doc = new jsPDF();
             doc.text(`Concelho: ${nome}\nDistrito: ${distrito}`, 10, 10);
@@ -123,9 +132,10 @@ async function loadConcelhos() {
       }
     }).addTo(map);
 
+    // Ajustar para caber no container
     const bounds = geojsonLayer.getBounds();
     if (bounds.isValid && bounds.isValid()) {
-      map.fitBounds(bounds);
+      map.fitBounds(bounds, { padding: [20, 20] });
     } else {
       console.warn('Nenhuma geometria válida para fazer fitBounds.');
     }
