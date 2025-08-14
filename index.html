@@ -84,8 +84,10 @@ function deslocarIlhas(feature) {
 if (distrito === 'Madeira') feature.geometry.coordinates = deslocar(feature.geometry.coordinates, [6, -6]);
 if (distrito === 'Açores') feature.geometry.coordinates = deslocar(feature.geometry.coordinates, [6, -5.5]);
 
-  }
+
   return feature;
+  }
+
 }
 
 // Carregamento dos concelhos
