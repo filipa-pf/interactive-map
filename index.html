@@ -102,24 +102,21 @@ function escurecerCor(cor, fator = 0.7) {
 }
 
 // Função para deslocar e aumentar as ilhas
-function moverEAmpliarIlhas(feature) {
+function deslocarIlhas(feature) {
   const distrito = feature.properties.dis_name || '';
 
-  if (distrito === 'Madeira' || distrito === 'Açores') {
-    const escala = distrito === 'Madeira' ? 5 : 4; // aumenta Madeira mais que Açores
-    const offset = distrito === 'Madeira' ? [-8, -5] : [-10, -4]; // deslocamento em [lon, lat]
-
-    const transformarCoords = coords => coords.map(c =>
-      Array.isArray(c[0])
-        ? transformarCoords(c)
-        : [(c[0] * escala) + offset[0], (c[1] * escala) + offset[1]]
+  if (distrito === 'Madeira') {
+    const offset = [5.5, -7]; // longitude e latitude aproximadas para aproximar do continente
+    feature.geometry.coordinates = feature.geometry.coordinates.map(ring =>
+      ring.map(coord => [coord[0] + offset[0], coord[1] + offset[1]])
     );
+  }
 
-    if (feature.type === 'Feature' && feature.geometry) {
-      feature.geometry.coordinates = transformarCoords(feature.geometry.coordinates);
-    } else if (feature.coordinates) {
-      feature.coordinates = transformarCoords(feature.coordinates);
-    }
+  if (distrito === 'Açores') {
+    const offset = [3, -7]; // aproxima os Açores do continente
+    feature.geometry.coordinates = feature.geometry.coordinates.map(ring =>
+      ring.map(coord => [coord[0] + offset[0], coord[1] + offset[1]])
+    );
   }
 
   return feature;
@@ -130,17 +127,14 @@ async function loadConcelhos() {
     const res = await fetch('https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/georef-portugal-concelho/exports/json');
     const data = await res.json();
 
-    const geojsonData = data.map(d => {
-      const feature = d.geo_shape;
-      feature.properties = {
-        con_name: d.con_name,
-        dis_name: d.dis_name
-      };
+geojsonData = data.map(d => {
+  const feature = d.geo_shape;
+  feature.properties = { con_name: d.con_name, dis_name: d.dis_name };
 
-      moverEAmpliarIlhas(feature);
+  deslocarIlhas(feature);
 
-      return feature;
-    });
+  return feature;
+});
 
     const geojsonLayer = L.geoJSON(geojsonData, {
       style: feature => {
