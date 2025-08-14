@@ -37,23 +37,10 @@ html, body {
 
 /* MOBILE */
 @media (max-width: 768px) {
-  .container {
-    flex-direction: column;
-  }
-
-  #map,
-  .info {
-    flex: none;      /* remove o flex original */
-    width: 100%;     /* ocupa toda a largura */
-  }
-
-  #map {
-    height: 300px;   /* altura do mapa no mobile */
-  }
-
-  .info {
-    height: auto;    /* altura natural do conteúdo */
-  }
+  .container { flex-direction: column !important; }
+  #map, .info { width: 100% !important; flex: none !important; }
+  #map { height: 300px !important; }
+  .info { height: auto !important; }
 }
 </style>
 
