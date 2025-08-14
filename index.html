@@ -15,19 +15,23 @@
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script>
-  const map = L.map('map').setView([39.5, -8], 7);
+  // Inicializa o mapa sem tiles nem marca de água
+  const map = L.map('map', {
+    zoomControl: true,
+    attributionControl: false
+  }).setView([39.5, -8], 7);
 
-  // camada de fundo sem marca de água
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: ''
-  }).addTo(map);
-
-  // carregar GeoJSON
+  // Carregar GeoJSON
   fetch('concelhos.json')
     .then(res => res.json())
     .then(data => {
       L.geoJSON(data, {
-        style: () => ({ color: '#556', weight: 1, fillColor: '#ccc', fillOpacity: 0.6 }),
+        style: () => ({ 
+          color: '#556',       // contorno
+          weight: 1, 
+          fillColor: '#ccc',   // cor de preenchimento
+          fillOpacity: 0.6 
+        }),
         onEachFeature: (feature, layer) => {
           layer.on('click', () => {
             const nome = feature.properties.name;
@@ -38,7 +42,7 @@
         }
       }).addTo(map);
     })
-    .catch(err => console.error('Erro ao carregar concelhos.geojson:', err));
+    .catch(err => console.error('Erro ao carregar concelhos.json:', err));
 </script>
 
 </body>
