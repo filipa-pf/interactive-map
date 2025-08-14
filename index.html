@@ -81,12 +81,17 @@ function deslocarIlhas(feature) {
     return coords.map(p => deslocar(p, offset));
   };
 
-if (distrito === 'Madeira') feature.geometry.coordinates = deslocar(feature.geometry.coordinates, [3, -5]);
-if (distrito === 'Açores') feature.geometry.coordinates = deslocar(feature.geometry.coordinates, [3, -4]);
+  // Conversão aproximada de pixels para graus (depende do tamanho do mapa)
+  const mapWidth = map.getSize().x;
+  const mapHeight = map.getSize().y;
+  const longOffset = (px) => px * 360 / mapWidth;   // px → longitude
+  const latOffset = (px) => -px * 180 / mapHeight;  // px → latitude (negativo sobe)
 
+  if (distrito === 'Madeira') feature.geometry.coordinates = deslocar(feature.geometry.coordinates, [longOffset(115), latOffset(225)]);
+  if (distrito === 'Açores') feature.geometry.coordinates = deslocar(feature.geometry.coordinates, [longOffset(200), latOffset(140)]);
 
   return feature;
-  }
+}
 
 // Carregamento dos concelhos
 async function loadConcelhos() {
@@ -128,7 +133,7 @@ async function loadConcelhos() {
     }).addTo(map);
 
     // Ajusta zoom e centro automaticamente para caber no container
-    map.fitBounds(geojsonLayer.getBounds());
+    map.fitBounds(geojsonLayer.getBounds(), { padding: [20, 20], maxZoom: 9 });
 
   } catch (err) {
     console.error('Erro ao carregar concelhos:', err);
