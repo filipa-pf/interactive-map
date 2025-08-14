@@ -1,40 +1,37 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt">
 <head>
 <meta charset="UTF-8">
 <title>Mapa Interativo de Portugal</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 <style>
-.container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20px;
-  padding: 10px;
-  box-sizing: border-box;
-}
-
-#map {
-  flex: 2;
-  min-width: 300px;
-  height: 630px;
-  box-sizing: border-box;
-}
-
-.info {
-  flex: 1;
-  min-width: 250px;
-  padding: 20px;
-  box-sizing: border-box;
-}
-
-.concelho:hover {
-  fill: #faa !important;
-  cursor: pointer;
-}
-
-@media (max-width: 768px) {
-  #map { height: 400px; }
-}
+  body { margin:0; padding:0; }
+  .container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    padding: 10px;
+    box-sizing: border-box;
+  }
+  #map {
+    flex: 2;
+    min-width: 300px;
+    height: 630px;
+    box-sizing: border-box;
+  }
+  .info {
+    flex: 1;
+    min-width: 250px;
+    padding: 20px;
+    box-sizing: border-box;
+  }
+  .concelho:hover {
+    fill: #faa !important;
+    cursor: pointer;
+  }
+  @media (max-width: 768px) {
+    #map { height: 400px; }
+  }
 </style>
 </head>
 <body>
@@ -42,7 +39,7 @@
 <div class="container">
   <div id="map"></div>
   <div class="info">
-    <h2>Info do concelho</h2>
+    <h2>Info do Concelho</h2>
     <div id="infoContent">
       Clique num concelho para gerar um PDF com o nome do concelho.
     </div>
@@ -55,49 +52,42 @@
 const { jsPDF } = window.jspdf;
 
 // Inicializar mapa
-// Inicializar mapa
-const map = L.map('map').setView([39.5, -8], 7);
+const map = L.map('map', { zoomControl: true, attributionControl: false })
+  .setView([39.5, -8], 7);
 
-// Camada base
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '© OpenStreetMap contributors'
-}).addTo(map);
-
-async function fetchAllConcelhos() {
-  const limit = 100;
-  let offset = 0;
-  let concelhos = [];
-  let total = 0;
-
-  do {
-    const url = `https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/georef-portugal-concelho/records?limit=${limit}&offset=${offset}`;
-    const res = await fetch(url);
-    const data = await res.json();
-    if(!data.results) break;
-    concelhos = concelhos.concat(data.results);
-    total = data.total_count;
-    offset += limit;
-  } while(offset < total);
-
-  return concelhos;
+// Função para gerar PDF
+function gerarPDF(info) {
+  const doc = new jsPDF();
+  doc.setFontSize(22);
+  doc.text(`Documento do concelho de ${info.nome}`, 20, 30);
+  doc.setFontSize(14);
+  doc.text(`Distrito: ${info.distrito}`, 20, 50);
+  doc.text(`Código: ${info.codigo}`, 20, 60);
+  doc.text(`Ano: ${info.ano}`, 20, 70);
+  doc.text(`Tipo: ${info.tipo}`, 20, 80);
+  doc.save(`Concelho_${info.nome}.pdf`);
 }
 
-async function initMap() {
-  try {
-    const concelhos = await fetchAllConcelhos();
-    const layerGroup = L.featureGroup();
+// Carregar todos os concelhos via exports (JSON completo)
+fetch('https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/georef-portugal-concelho/exports/json')
+  .then(res => res.json())
+  .then(data => {
+    data.forEach(item => {
+      if(!item?.geometry) return;
 
-    concelhos.forEach(rec => {
-      const feature = rec.record;
-      if(!feature || !feature.geometry) return;
-
-      const geojsonFeature = {
+      const feature = {
         type: "Feature",
-        properties: feature.fields,
-        geometry: feature.geometry
+        properties: {
+          nome: item.fields.nome,
+          codigo: item.fields.codigo,
+          distrito: item.fields.distrito,
+          ano: item.fields.ano,
+          tipo: item.fields.tipo
+        },
+        geometry: item.geometry
       };
 
-      const layer = L.geoJSON(geojsonFeature, {
+      L.geoJSON(feature, {
         style: () => ({
           color: '#556',
           weight: 1,
@@ -107,46 +97,24 @@ async function initMap() {
         onEachFeature: (feature, layer) => {
           layer.on('click', () => {
             const info = feature.properties;
-            if(info){
-              const content = `
-                <strong>Nome Concelho:</strong> ${info.nome}<br>
-                <strong>Distrito:</strong> ${info.distrito}<br>
-                <strong>Código:</strong> ${info.codigo}<br>
-                <strong>Ano:</strong> ${info.ano}<br>
-                <strong>Tipo:</strong> ${info.tipo}
-              `;
-              document.getElementById('infoContent').innerHTML = content;
-
-              const doc = new jsPDF();
-              doc.setFontSize(22);
-              doc.text(`Documento do concelho de ${info.nome}`, 20, 30);
-              doc.setFontSize(14);
-              doc.text(`Distrito: ${info.distrito}`, 20, 50);
-              doc.text(`Código: ${info.codigo}`, 20, 60);
-              doc.text(`Ano: ${info.ano}`, 20, 70);
-              doc.text(`Tipo: ${info.tipo}`, 20, 80);
-              doc.save(`Concelho_${info.nome}.pdf`);
-            }
+            const content = `
+              <strong>Nome Concelho:</strong> ${info.nome}<br>
+              <strong>Distrito:</strong> ${info.distrito}<br>
+              <strong>Código:</strong> ${info.codigo}<br>
+              <strong>Ano:</strong> ${info.ano}<br>
+              <strong>Tipo:</strong> ${info.tipo}
+            `;
+            document.getElementById('infoContent').innerHTML = content;
+            gerarPDF(info);
           });
 
           layer.on('mouseover', () => layer.setStyle({ fillColor: '#faa', weight: 2 }));
           layer.on('mouseout', () => layer.setStyle({ fillColor: '#ccc', weight: 1 }));
         }
-      });
-
-      layer.addTo(layerGroup);
+      }).addTo(map);
     });
-
-    layerGroup.addTo(map);
-    map.fitBounds(layerGroup.getBounds()); // ajusta zoom para todos concelhos
-
-  } catch(err){
-    console.error('Erro:', err);
-  }
-}
-
-initMap();
+  })
+  .catch(err => console.error('Erro:', err));
 </script>
-
 </body>
 </html>
