@@ -40,8 +40,15 @@ function escurecerCor(cor){
 }
 
 // transforma coordenadas das ilhas para miniaturas
-function transformarIlha(coords, scale, offset){
-  return coords.map(ring => ring.map(([x,y]) => [x*scale + offset[0], y*scale + offset[1]]));
+function transformarIlha(feature, dx = 0, dy = 0) {
+  if (!feature.coordinates) return feature; // skip if undefined
+  const newFeature = JSON.parse(JSON.stringify(feature));
+  newFeature.coordinates = feature.coordinates.map(ring =>
+    Array.isArray(ring[0]) 
+      ? ring.map(([x, y]) => [x + dx, y + dy]) 
+      : ring // if not an array of points, keep as is
+  );
+  return newFeature;
 }
 
 const map = L.map('map', { zoomControl:false, attributionControl:false }).setView([39.5,-8],7);
