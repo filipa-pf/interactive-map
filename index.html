@@ -5,68 +5,56 @@
 <title>Mapa Interativo de Portugal</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 <style>
-  #map { height: 600px; width: 70%; float: left; }
-  #info { width: 28%; float: right; padding-left: 2%; }
+  #map { height: 600px; width: 60%; float: left; }
+  .info { width: 35%; float: left; padding-left: 20px; }
   .concelho:hover { fill: #faa !important; cursor: pointer; }
 </style>
 </head>
 <body>
 
 <div id="map"></div>
-<div id="info">
-  <h2>Informações</h2>
-  <p>Clique num concelho para mais detalhes.</p>
+<div class="info">
+  <h2>Info do concelho</h2>
+  <p>Clique num concelho para gerar um PDF com o nome do concelho.</p>
 </div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
-const map = L.map('map', { zoomControl: true, attributionControl: false }).setView([39.5, -8], 7);
+  const { jsPDF } = window.jspdf;
 
-// Função para deslocar e redimensionar polígonos
-function transformPolygon(polygon, dx, dy, scale = 1) {
-  return polygon.map(ring =>
-    ring.map(([lon, lat]) => [lon * scale + dx, lat * scale + dy])
-  );
-}
+  const map = L.map('map', {
+    zoomControl: true,
+    attributionControl: false
+  }).setView([39.5, -8], 7);
 
-// Carregar GeoJSON
-fetch('concelhos.json')
-  .then(res => res.json())
-  .then(data => {
+  // Carregar GeoJSON
+  fetch('concelhos.json')
+    .then(res => res.json())
+    .then(data => {
+      L.geoJSON(data, {
+        style: () => ({ 
+          color: '#556',
+          weight: 1, 
+          fillColor: '#ccc',
+          fillOpacity: 0.6
+        }),
+        onEachFeature: (feature, layer) => {
+          layer.on('click', () => {
+            const nome = feature.properties.name;
 
-    // Exemplo de transformação:
-    data.geometries = data.geometries.map((geom, index) => {
-      // Continente (não muda)
-      if (index === 0) return geom;
-
-      // Madeira (aproximadamente geometria 1)
-      if (index === 1) {
-        geom.coordinates = transformPolygon(geom.coordinates, -8, -10, 5);
-      }
-
-      // Açores (aproximadamente geometria 2)
-      if (index === 2) {
-        geom.coordinates = transformPolygon(geom.coordinates, -5, -5, 4);
-      }
-
-      return geom;
-    });
-
-    // Adicionar ao mapa
-    L.geoJSON(data, {
-      style: () => ({ color: '#556', weight: 1, fillColor: '#ccc', fillOpacity: 0.6 }),
-      onEachFeature: (feature, layer) => {
-        layer.on('click', () => {
-          document.getElementById('info').innerHTML = `
-            <h2>Concelho</h2>
-            <p>Mais informações aqui.</p>
-          `;
-        });
-      }
-    }).addTo(map);
-
-  })
-  .catch(err => console.error('Erro ao carregar concelhos.json:', err));
+            // Gerar PDF
+            const doc = new jsPDF();
+            doc.setFontSize(22);
+            doc.text(`Documento para o concelho de ${nome}`, 20, 30);
+            doc.setFontSize(14);
+            doc.text("Este é um template automático.", 20, 50);
+            doc.save(`Concelho_${nome}.pdf`);
+          });
+        }
+      }).addTo(map);
+    })
+    .catch(err => console.error('Erro ao carregar concelhos.json:', err));
 </script>
 
 </body>
