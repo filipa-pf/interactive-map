@@ -5,48 +5,41 @@
 <title>Mapa Interativo de Portugal</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 <style>
-body {
-  margin: 0;
-  font-family: sans-serif;
-}
-
+/* Container que envolve mapa e info */
 .container {
   display: flex;
-  flex-wrap: wrap; /* Permite que elementos quebrem linha */
+  flex-wrap: wrap; /* permite que elementos quebrem linha em telas pequenas */
+  gap: 20px;       /* espaçamento entre mapa e info */
+  padding: 10px;
+  box-sizing: border-box;
 }
 
-/* Mapa e sidebar lado a lado em telas grandes */
+/* Mapa */
 #map {
-  flex: 2;
-  min-width: 300px;
+  flex: 2;          /* ocupa mais espaço que info em telas grandes */
+  min-width: 300px; /* evita ficar muito pequeno */
   height: 630px;
+  box-sizing: border-box;
 }
 
+/* Info lateral */
 .info {
-  flex: 1;
-  min-width: 250px;
+  flex: 1;          /* ocupa menos espaço que mapa */
+  min-width: 250px; /* largura mínima para mobile */
   padding: 20px;
   box-sizing: border-box;
 }
 
-/* Mobile: mapa em cima, info embaixo */
-@media (max-width: 768px) {
-  #map, .info {
-    flex: 1 1 100%; /* ambos ocupam 100% da largura */
-    height: 400px;   /* altura menor para mobile */
-  }
-  .info {
-    padding: 10px;
-  }
+/* Efeito hover nas concelhos */
+.concelho:hover {
+  fill: #faa !important;
+  cursor: pointer;
 }
 
-@media (max-width: 480px) {
+/* Mobile: reduzir altura do mapa se necessário */
+@media (max-width: 768px) {
   #map {
-    height: 300px; /* ainda mais compacto */
-  }
-  .info {
-    padding: 5px;
-    font-size: 14px;
+    height: 400px; /* altura menor em telas pequenas */
   }
 }
 </style>
