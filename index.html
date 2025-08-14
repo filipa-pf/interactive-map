@@ -101,15 +101,16 @@ function escurecerCor(cor, fator = 0.7) {
   return `rgb(${escuro.join(",")})`;
 }
 
-// Função para deslocar ilhas mais próximas do continente
-function moverIlhasParaContinente(feature) {
+// Função para deslocar e aumentar ilhas perto do continente
+function moverEAmpliarIlhas(feature) {
   const distrito = feature.properties.dis_name || '';
 
   if (distrito === 'Madeira' || distrito === 'Açores') {
-    const offset = distrito === 'Madeira' ? [-8, -5] : [-10, -4]; // deslocamento em [lon, lat]
-    
+    const offset = distrito === 'Madeira' ? [-8, -4] : [-10, -3]; // deslocamento em [lon, lat]
+    const scale = distrito === 'Madeira' ? 2.0 : 1.8; // aumento de tamanho
+
     const shiftCoords = coords => coords.map(c => 
-      Array.isArray(c[0]) ? shiftCoords(c) : [c[0] + offset[0], c[1] + offset[1]]
+      Array.isArray(c[0]) ? shiftCoords(c) : [c[0] * scale + offset[0], c[1] * scale + offset[1]]
     );
 
     if (feature.type === 'Feature' && feature.geometry) {
@@ -134,7 +135,7 @@ async function loadConcelhos() {
         dis_name: d.dis_name
       };
 
-      moverIlhasParaContinente(feature);
+      moverEAmpliarIlhas(feature);
 
       return feature;
     });
