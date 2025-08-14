@@ -42,7 +42,7 @@
   <div class="info">
     <h2>Info do concelho</h2>
     <div id="infoContent">
-      Clique num concelho para ver informações.
+      Clique num concelho para gerar um PDF com o nome do concelho.
     </div>
   </div>
 </div>
@@ -57,37 +57,34 @@ const map = L.map('map', { zoomControl: true, attributionControl: false }).setVi
 
 // Cores por distrito
 const coresDistritos = {
-  "Aveiro": "#1f77b4",
-  "Beja": "#ff7f0e",
-  "Braga": "#2ca02c",
-  "Bragança": "#d62728",
-  "Castelo Branco": "#9467bd",
-  "Coimbra": "#8c564b",
-  "Évora": "#e377c2",
-  "Faro": "#7f7f7f",
-  "Guarda": "#bcbd22",
-  "Leiria": "#17becf",
-  "Lisboa": "#aec7e8",
-  "Portalegre": "#ffbb78",
-  "Porto": "#98df8a",
-  "Santarém": "#ff9896",
-  "Setúbal": "#c5b0d5",
-  "Viana do Castelo": "#c49c94",
-  "Vila Real": "#f7b6d2",
-  "Viseu": "#c7c7c7",
-  "Madeira": "#dbdb8d",
-  "Açores": "#9edae5"
+  "Braga": "#f94144",
+  "Porto": "#f3722c",
+  "Viana do Castelo": "#f8961e",
+  "Vila Real": "#f9c74f",
+  "Aveiro": "#90be6d",
+  "Coimbra": "#43aa8b",
+  "Leiria": "#577590",
+  "Lisboa": "#277da1",
+  "Setúbal": "#9d4edd",
+  "Évora": "#f72585",
+  "Beja": "#7209b7",
+  "Faro": "#3a0ca3",
+  "Castelo Branco": "#4361ee",
+  "Guarda": "#4cc9f0"
 };
 
-// Função para buscar os concelhos da API Opendatasoft
+// Buscar concelhos da API Opendatasoft
 async function loadConcelhos() {
   try {
     const res = await fetch('https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/georef-portugal-concelho/exports/json');
     const data = await res.json();
 
-    const geojsonLayer = L.geoJSON(data, {
+    // Extraí apenas a geometria (geo_shape) de cada concelho
+    const geojsonData = data.map(d => d.geo_shape);
+
+    const geojsonLayer = L.geoJSON(geojsonData, {
       style: feature => {
-        const distrito = feature.fields?.distrito || '';
+        const distrito = feature.properties.dis_name || '';
         return { 
           color: '#000', 
           weight: 1, 
@@ -96,9 +93,9 @@ async function loadConcelhos() {
         };
       },
       onEachFeature: (feature, layer) => {
-        const nome = feature.fields?.nome || 'Sem nome';
-        const distrito = feature.fields?.distrito || 'Sem distrito';
-
+        const nome = feature.properties.con_name || 'Sem nome';
+        const distrito = feature.properties.dis_name || 'Sem distrito';
+        
         layer.on('click', () => {
           document.getElementById('infoContent').innerHTML = `
             <strong>${nome}</strong><br>
@@ -115,8 +112,10 @@ async function loadConcelhos() {
       }
     }).addTo(map);
 
-    if (geojsonLayer.getBounds().isValid()) {
-      map.fitBounds(geojsonLayer.getBounds());
+    // Ajusta o mapa para mostrar todos os concelhos
+    const bounds = geojsonLayer.getBounds();
+    if (bounds.isValid && bounds.isValid()) {
+      map.fitBounds(bounds);
     } else {
       console.warn('Nenhuma geometria válida para fazer fitBounds.');
     }
