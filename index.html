@@ -10,46 +10,42 @@ html, body {
   margin: 0;
 }
 
-/* Container principal */
 .container {
   display: flex;
-  flex-wrap: wrap;
   gap: 20px;
   padding: 10px;
-  /* Remover altura fixa em desktop para não esticar demais */
+  height: 100vh; /* ocupa toda a altura da viewport */
 }
 
-/* Mapa */
 #map {
   flex: 2;
   min-width: 300px;
-  height: 600px; /* altura padrão para desktop */
+  height: 100%;
 }
 
-/* Coluna de informação */
 .info {
   flex: 1;
   min-width: 250px;
   padding: 20px;
   background: #f8f8f8;
-  overflow-y: auto; /* permite scroll se o conteúdo for grande */
+  overflow-y: auto;
 }
 
 .concelho {
   cursor: pointer;
 }
 
-/* Ajustes para mobile */
+/* MOBILE */
 @media (max-width: 768px) {
   .container {
-    flex-direction: column !important; /* força a coluna */
-    height: auto; /* permite que a altura seja natural */
+    flex-direction: column !important; /* força coluna */
+    height: auto; /* altura natural */
   }
 
   #map,
   .info {
-    width: 100% !important; /* força a largura completa */
-    flex: none; /* remove o flex original */
+    width: 100% !important; /* ocupa a largura toda */
+    flex: none; /* remove efeito flex original */
   }
 
   #map {
@@ -57,6 +53,7 @@ html, body {
   }
 }
 </style>
+
 
 
 </head>
