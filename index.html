@@ -83,7 +83,14 @@ async function loadConcelhos() {
     console.log('Dados completos da API:', data);
 
     // Extraí apenas a geometria (geo_shape) de cada concelho
-    const geojsonData = data.map(d => d.geo_shape);
+   const geojsonData = data.map(d => {
+  const feature = d.geo_shape;
+  feature.properties = {
+    con_name: d.con_name,
+    dis_name: d.dis_name
+  };
+  return feature;
+});
 
     const geojsonLayer = L.geoJSON(geojsonData, {
       style: feature => {
