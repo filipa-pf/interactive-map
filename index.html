@@ -47,27 +47,46 @@
 
   // Carregar GeoJSON
   fetch('concelhos.json')
-    .then(res => res.json())
-    .then(data => {
-      L.geoJSON(data, {
-        style: () => ({ 
-          color: '#556',
-          weight: 1, 
-          fillColor: '#ccc',
-          fillOpacity: 0.6 
-        }),
-        onEachFeature: (feature, layer) => {
-          layer.on('click', () => {
-            const nome = feature.properties.name;
-            document.getElementById('info').innerHTML = `
-              <h2>${nome}</h2>
-              <p>Contacto em construção.</p>
-            `;
-          });
-        }
-      }).addTo(map);
-    })
-    .catch(err => console.error('Erro ao carregar concelhos.json:', err));
+  .then(res => res.json())
+  .then(data => {
+
+    // Função para mover e escalar ilhas
+    function moveIsland(feature, dx, dy, scale = 1) {
+      feature.geometry.coordinates = feature.geometry.coordinates.map(polygon => {
+        return polygon.map(ring => {
+          return ring.map(([lon, lat]) => [lon * scale + dx, lat * scale + dy]);
+        });
+      });
+      return feature;
+    }
+
+    // Percorre os features e ajusta as ilhas
+    data.features = data.features.map(feature => {
+      const name = feature.properties.name;
+      if (name === "Madeira") {
+        return moveIsland(feature, -10, -32, 5); // exemplo de deslocamento e escala
+      }
+      if (name === "Açores") {
+        return moveIsland(feature, -15, -15, 4); // exemplo de deslocamento e escala
+      }
+      return feature;
+    });
+
+    // Adiciona o GeoJSON ajustado ao mapa
+    L.geoJSON(data, {
+      style: () => ({ color: '#556', weight: 1, fillColor: '#ccc', fillOpacity: 0.6 }),
+      onEachFeature: (feature, layer) => {
+        layer.on('click', () => {
+          const nome = feature.properties.name;
+          if (confirm(`Pretende contactar o autarca de ${nome}?`)) {
+            alert('Contacto em construção.');
+          }
+        });
+      }
+    }).addTo(map);
+
+  })
+  .catch(err => console.error('Erro ao carregar concelhos.json:', err));
 </script>
 
 </body>
