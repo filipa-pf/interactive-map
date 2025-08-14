@@ -5,18 +5,63 @@
 <title>Mapa Interativo de Portugal</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 <style>
-  #map { height: 600px; width: 60%; float: left; }
-  .info { width: 35%; float: left; padding-left: 20px; }
-  .concelho:hover { fill: #faa !important; cursor: pointer; }
+/* Container flexível para mapa + info */
+body {
+  margin: 0;
+  font-family: sans-serif;
+}
+
+.container {
+  display: flex;
+  flex-wrap: wrap; /* Permite quebrar para linhas menores */
+}
+
+/* Mapa e sidebar lado a lado em telas grandes */
+#map {
+  flex: 2; /* ocupa mais espaço */
+  min-width: 300px;
+  height: 600px;
+}
+
+.info {
+  flex: 1;
+  min-width: 250px;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+/* Estilos responsivos */
+@media (max-width: 900px) {
+  #map, .info {
+    flex: 1 1 100%; /* Ambos ocupam 100% da largura */
+    height: 400px; /* reduz a altura do mapa em telas menores */
+  }
+  .info {
+    padding: 10px;
+  }
+}
+
+@media (max-width: 500px) {
+  #map {
+    height: 300px; /* ainda mais compacto em celular */
+  }
+  .info {
+    padding: 5px;
+    font-size: 14px;
+  }
+}
 </style>
+
 </head>
 <body>
 
-<div id="map"></div>
-<div class="info">
-  <h2>Info do concelho</h2>
-  <div id="infoContent">
-    Clique num concelho para gerar um PDF com o nome do concelho.
+<div class="container">
+  <div id="map"></div>
+  <div class="info">
+    <h2>Info do concelho</h2>
+    <div id="infoContent">
+      Clique num concelho para gerar um PDF com o nome do concelho.
+    </div>
   </div>
 </div>
 
