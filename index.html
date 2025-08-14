@@ -35,14 +35,19 @@ fetch('concelhos.json')
     data.geometries.forEach((geom, i) => {
       const feature = {
         type: "Feature",
-        properties: { name: `Concelho ${i+1}` }, // fallback name
+        properties: { name: `Concelho ${i+1}` }, // you can replace with actual names
         geometry: geom
       };
 
       L.geoJSON(feature, {
-        style: () => ({ color: '#556', weight: 1, fillColor: '#ccc', fillOpacity: 0.6 }),
+        style: () => ({
+          color: '#556',
+          weight: 1,
+          fillColor: '#ccc',
+          fillOpacity: 0.6
+        }),
         onEachFeature: (feature, layer) => {
-          // Click
+          // click to download PDF
           layer.on('click', () => {
             const nome = feature.properties.name;
             const doc = new jsPDF();
@@ -53,13 +58,13 @@ fetch('concelhos.json')
             doc.save(`Concelho_${nome}.pdf`);
           });
 
-          // Hover
+          // hover highlight
           layer.on('mouseover', () => layer.setStyle({ fillColor: '#faa', weight: 2 }));
           layer.on('mouseout', () => layer.setStyle({ fillColor: '#ccc', weight: 1 }));
         }
       }).addTo(map);
     });
   })
-  .catch(err => console.error(err));
+  .catch(err => console.error('Erro:', err));
 </body>
 </html>
