@@ -5,45 +5,33 @@
 <title>Mapa Interativo de Portugal</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 <style>
-/* Container que envolve mapa e info */
 .container {
   display: flex;
-  flex-wrap: wrap; /* permite que elementos quebrem linha em telas pequenas */
-  gap: 20px;       /* espaçamento entre mapa e info */
+  flex-wrap: wrap;
+  gap: 20px;
   padding: 10px;
   box-sizing: border-box;
 }
-
-/* Mapa */
 #map {
-  flex: 2;          /* ocupa mais espaço que info em telas grandes */
-  min-width: 300px; /* evita ficar muito pequeno */
+  flex: 2;
+  min-width: 300px;
   height: 630px;
   box-sizing: border-box;
 }
-
-/* Info lateral */
 .info {
-  flex: 1;          /* ocupa menos espaço que mapa */
-  min-width: 250px; /* largura mínima para mobile */
+  flex: 1;
+  min-width: 250px;
   padding: 20px;
   box-sizing: border-box;
 }
-
-/* Efeito hover nas concelhos */
 .concelho:hover {
   fill: #faa !important;
   cursor: pointer;
 }
-
-/* Mobile: reduzir altura do mapa se necessário */
 @media (max-width: 768px) {
-  #map {
-    height: 400px; /* altura menor em telas pequenas */
-  }
+  #map { height: 400px; }
 }
 </style>
-
 </head>
 <body>
 
@@ -51,9 +39,7 @@
   <div id="map"></div>
   <div class="info">
     <h2>Info do concelho</h2>
-    <div id="infoContent">
-      Clique num concelho para gerar um PDF com o nome do concelho.
-    </div>
+    <div id="infoContent">Clique num concelho para gerar um PDF com o nome do concelho.</div>
   </div>
 </div>
 
@@ -66,74 +52,74 @@ const { jsPDF } = window.jspdf;
 const map = L.map('map', { zoomControl: true, attributionControl: false })
   .setView([39.5, -8], 7);
 
-// Função para buscar info extra via API
-async function fetchConcelhoInfo(codigo) {
-  const url = `https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/georef-portugal-concelho/records/?filter[codigo]=${codigo}`;
-  const res = await fetch(url);
-  const data = await res.json();
-  if(data.records && data.records.length > 0){
-    return data.records[0].record.fields;
-  }
-  return null;
+// Função para buscar todos os concelhos via API
+async function fetchAllConcelhos() {
+  const datasetId = "georef-portugal-concelho";
+  const baseUrl = `https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/${datasetId}/records`;
+  let allRecords = [];
+  let limit = 100;
+  let offset = 0;
+  let total = 0;
+
+  do {
+    const res = await fetch(`${baseUrl}?limit=${limit}&offset=${offset}`);
+    const data = await res.json();
+    allRecords = allRecords.concat(data.records);
+    total = data.nhits;
+    offset += limit;
+  } while (offset < total);
+
+  return allRecords;
 }
 
-// Carregar GeoJSON
-fetch('concelhos.json')
-  .then(res => res.json())
-  .then(async geoData => {
+// Desenhar concelhos no mapa
+fetchAllConcelhos().then(concelhos => {
+  concelhos.forEach(rec => {
+    const geo = rec.record.geometry;
+    const props = rec.record.fields;
 
-    for(const geom of geoData.geometries){
-      // Aqui definimos um "código" fictício, se tiveres um campo real no JSON, substitui
-      const codigo = geom.properties?.codigo || Math.floor(Math.random()*10000);
+    if(!geo) return; // ignora registros sem geometria
 
-      const feature = {
-        type: "Feature",
-        properties: { codigo: codigo, name: `Concelho ${codigo}` },
-        geometry: geom
-      };
+    const feature = {
+      type: "Feature",
+      properties: props,
+      geometry: geo
+    };
 
-      L.geoJSON(feature, {
-        style: () => ({
-          color: '#556',
-          weight: 1,
-          fillColor: '#ccc',
-          fillOpacity: 0.6
-        }),
-        onEachFeature: (feature, layer) => {
-          layer.on('click', async () => {
-            const info = await fetchConcelhoInfo(feature.properties.codigo);
-            if(info){
-              const content = `
-                <strong>Nome Concelho:</strong> ${info.nome}<br>
-                <strong>Distrito:</strong> ${info.distrito}<br>
-                <strong>Código:</strong> ${info.codigo}<br>
-                <strong>Ano:</strong> ${info.ano}<br>
-                <strong>Tipo:</strong> ${info.tipo}
-              `;
-              document.getElementById('infoContent').innerHTML = content;
+    L.geoJSON(feature, {
+      style: () => ({ color:'#556', weight:1, fillColor:'#ccc', fillOpacity:0.6 }),
+      onEachFeature: (feature, layer) => {
+        layer.on('click', () => {
+          const info = feature.properties;
+          if(info){
+            document.getElementById('infoContent').innerHTML = `
+              <strong>Nome Concelho:</strong> ${info.nome}<br>
+              <strong>Distrito:</strong> ${info.distrito}<br>
+              <strong>Código:</strong> ${info.codigo}<br>
+              <strong>Ano:</strong> ${info.ano}<br>
+              <strong>Tipo:</strong> ${info.tipo}
+            `;
 
-              const doc = new jsPDF();
-              doc.setFontSize(22);
-              doc.text(`Documento do concelho de ${info.nome}`, 20, 30);
-              doc.setFontSize(14);
-              doc.text(`Distrito: ${info.distrito}`, 20, 50);
-              doc.text(`Código: ${info.codigo}`, 20, 60);
-              doc.text(`Ano: ${info.ano}`, 20, 70);
-              doc.text(`Tipo: ${info.tipo}`, 20, 80);
-              doc.save(`Concelho_${info.nome}.pdf`);
-            } else {
-              alert('Info não encontrada para este concelho.');
-            }
-          });
+            const doc = new jsPDF();
+            doc.setFontSize(22);
+            doc.text(`Documento do concelho de ${info.nome}`, 20, 30);
+            doc.setFontSize(14);
+            doc.text(`Distrito: ${info.distrito}`, 20, 50);
+            doc.text(`Código: ${info.codigo}`, 20, 60);
+            doc.text(`Ano: ${info.ano}`, 20, 70);
+            doc.text(`Tipo: ${info.tipo}`, 20, 80);
+            doc.save(`Concelho_${info.nome}.pdf`);
+          } else {
+            alert('Info não encontrada para este concelho.');
+          }
+        });
 
-          layer.on('mouseover', () => layer.setStyle({ fillColor: '#faa', weight: 2 }));
-          layer.on('mouseout', () => layer.setStyle({ fillColor: '#ccc', weight: 1 }));
-        }
-      }).addTo(map);
-    }
-
-  })
-  .catch(err => console.error('Erro:', err));
+        layer.on('mouseover', () => layer.setStyle({ fillColor:'#faa', weight:2 }));
+        layer.on('mouseout', () => layer.setStyle({ fillColor:'#ccc', weight:1 }));
+      }
+    }).addTo(map);
+  });
+});
 </script>
 </body>
 </html>
