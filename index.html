@@ -23,7 +23,7 @@ html, body {
 #map {
   flex: 2 1 300px;
   min-width: 300px;
-  height: 600px;
+  height: 700px; /* mapa maior */
   position: relative;
 }
 
@@ -39,20 +39,10 @@ html, body {
   cursor: pointer;
 }
 
-/* inset maps */
-.inset-map {
-  width: 150px;
-  height: 120px;
-  border: 2px solid #333;
-  border-radius: 4px;
-  overflow: hidden;
-  background: #fff;
-}
-
 /* MOBILE */
 @media (max-width: 768px) {
   .container { flex-direction: column !important; }
-  #map { height: 300px !important; flex: none !important; }
+  #map { height: 400px !important; flex: none !important; }
   .info { height: auto !important; }
 }
 </style>
@@ -74,7 +64,7 @@ html, body {
 <script>
 const { jsPDF } = window.jspdf;
 
-const map = L.map('map', { zoomControl: true, attributionControl: false }).setView([39.5, -8], 7);
+const map = L.map('map', { zoomControl: true, attributionControl: false }).setView([39.5, -8], 6);
 
 const coresDistritos = {
   "Braga": "#f94144",
@@ -101,18 +91,51 @@ function escurecerCor(cor, fator = 0.7) {
   return `rgb(${escuro.join(",")})`;
 }
 
+// Função para aproximar ilhas do continente
+function ajustarIlhas(coords, distrito) {
+  let factor = 1;
+  let dx = 0;
+  let dy = 0;
+
+  if(distrito === "Açores") {
+    factor = 1.5;    // aumenta tamanho
+    dx = 25;         // desloca longitude
+    dy = -5;         // desloca latitude
+  }
+  if(distrito === "Madeira") {
+    factor = 2;      // aumenta tamanho
+    dx = 18;
+    dy = -5;
+  }
+
+  return coords.map(point => {
+    if(Array.isArray(point[0])) {
+      return ajustarIlhas(point, distrito); // polígonos aninhados
+    }
+    return [
+      point[0] * factor + dx,
+      point[1] * factor + dy
+    ];
+  });
+}
+
 async function loadConcelhos() {
   try {
     const res = await fetch('https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/georef-portugal-concelho/exports/json');
     const data = await res.json();
 
     const geojsonData = data.map(d => {
-      console.log('Concelho:', d.con_name, '| Distrito:', d.dis_name); 
-
       const feature = d.geo_shape;
+      const distrito = d.dis_name;
+
+      // Ajusta ilhas
+      if(distrito === "Açores" || distrito === "Madeira") {
+        feature.coordinates = ajustarIlhas(feature.coordinates, distrito);
+      }
+
       feature.properties = {
         con_name: d.con_name,
-        dis_name: d.dis_name
+        dis_name: distrito
       };
       return feature;
     });
@@ -152,7 +175,7 @@ async function loadConcelhos() {
     }).addTo(map);
 
     const bounds = geojsonLayer.getBounds();
-    if (bounds.isValid && bounds.isValid()) {
+    if(bounds.isValid && bounds.isValid()) {
       map.fitBounds(bounds, {
         padding: [20, 20],
         maxZoom: 10
@@ -169,7 +192,6 @@ async function loadConcelhos() {
     console.error('Erro ao carregar concelhos:', err);
   }
 }
-
 
 loadConcelhos();
 </script>
