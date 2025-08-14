@@ -23,7 +23,7 @@ html, body {
 #map {
   flex: 2 1 300px;
   min-width: 300px;
-  height: 700px; /* mapa maior */
+  height: 600px;
   position: relative;
 }
 
@@ -39,10 +39,20 @@ html, body {
   cursor: pointer;
 }
 
+/* inset maps */
+.inset-map {
+  width: 150px;
+  height: 120px;
+  border: 2px solid #333;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #fff;
+}
+
 /* MOBILE */
 @media (max-width: 768px) {
   .container { flex-direction: column !important; }
-  #map { height: 400px !important; flex: none !important; }
+  #map { height: 300px !important; flex: none !important; }
   .info { height: auto !important; }
 }
 </style>
@@ -64,7 +74,7 @@ html, body {
 <script>
 const { jsPDF } = window.jspdf;
 
-const map = L.map('map', { zoomControl: true, attributionControl: false }).setView([39.5, -8], 6);
+const map = L.map('map', { zoomControl: true, attributionControl: false }).setView([39.5, -8], 7);
 
 const coresDistritos = {
   "Braga": "#f94144",
@@ -91,32 +101,25 @@ function escurecerCor(cor, fator = 0.7) {
   return `rgb(${escuro.join(",")})`;
 }
 
-// Função para aproximar ilhas do continente
-function ajustarIlhas(coords, distrito) {
-  let factor = 1;
-  let dx = 0;
-  let dy = 0;
+// Função para deslocar ilhas mais próximas do continente
+function moverIlhasParaContinente(feature) {
+  const distrito = feature.properties.dis_name || '';
 
-  if(distrito === "Açores") {
-    factor = 1.5;    // aumenta tamanho
-    dx = 25;         // desloca longitude
-    dy = -5;         // desloca latitude
-  }
-  if(distrito === "Madeira") {
-    factor = 2;      // aumenta tamanho
-    dx = 18;
-    dy = -5;
-  }
+  if (distrito === 'Madeira' || distrito === 'Açores') {
+    const offset = distrito === 'Madeira' ? [-8, -5] : [-10, -4]; // deslocamento em [lon, lat]
+    
+    const shiftCoords = coords => coords.map(c => 
+      Array.isArray(c[0]) ? shiftCoords(c) : [c[0] + offset[0], c[1] + offset[1]]
+    );
 
-  return coords.map(point => {
-    if(Array.isArray(point[0])) {
-      return ajustarIlhas(point, distrito); // polígonos aninhados
+    if (feature.type === 'Feature' && feature.geometry) {
+      feature.geometry.coordinates = shiftCoords(feature.geometry.coordinates);
+    } else if (feature.coordinates) {
+      feature.coordinates = shiftCoords(feature.coordinates);
     }
-    return [
-      point[0] * factor + dx,
-      point[1] * factor + dy
-    ];
-  });
+  }
+
+  return feature;
 }
 
 async function loadConcelhos() {
@@ -126,17 +129,13 @@ async function loadConcelhos() {
 
     const geojsonData = data.map(d => {
       const feature = d.geo_shape;
-      const distrito = d.dis_name;
-
-      // Ajusta ilhas
-      if(distrito === "Açores" || distrito === "Madeira") {
-        feature.coordinates = ajustarIlhas(feature.coordinates, distrito);
-      }
-
       feature.properties = {
         con_name: d.con_name,
-        dis_name: distrito
+        dis_name: d.dis_name
       };
+
+      moverIlhasParaContinente(feature);
+
       return feature;
     });
 
@@ -175,18 +174,12 @@ async function loadConcelhos() {
     }).addTo(map);
 
     const bounds = geojsonLayer.getBounds();
-    if(bounds.isValid && bounds.isValid()) {
-      map.fitBounds(bounds, {
-        padding: [20, 20],
-        maxZoom: 10
-      });
+    if (bounds.isValid && bounds.isValid()) {
+      map.fitBounds(bounds, { padding: [20, 20], maxZoom: 10 });
     }
 
     window.addEventListener('resize', () => {
-      map.fitBounds(bounds, {
-        padding: [20, 20],
-        maxZoom: 10
-      });
+      map.fitBounds(bounds, { padding: [20, 20], maxZoom: 10 });
     });
   } catch(err) {
     console.error('Erro ao carregar concelhos:', err);
