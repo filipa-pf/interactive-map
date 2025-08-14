@@ -1,120 +1,93 @@
 <!DOCTYPE html>
 <html lang="pt">
 <head>
-<meta charset="UTF-8">
-<title>Mapa Interativo de Portugal</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-<style>
-  body { margin:0; padding:0; }
-  .container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
-    padding: 10px;
-    box-sizing: border-box;
-  }
-  #map {
-    flex: 2;
-    min-width: 300px;
-    height: 630px;
-    box-sizing: border-box;
-  }
-  .info {
-    flex: 1;
-    min-width: 250px;
-    padding: 20px;
-    box-sizing: border-box;
-  }
-  .concelho:hover {
-    fill: #faa !important;
-    cursor: pointer;
-  }
-  @media (max-width: 768px) {
-    #map { height: 400px; }
-  }
-</style>
+  <meta charset="UTF-8">
+  <title>Mapa Interativo dos Concelhos</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    #map { height: 90vh; width: 100%; }
+    #infoBox {
+      position: absolute;
+      top: 10px; left: 10px;
+      padding: 10px;
+      background: white;
+      border: 1px solid #ccc;
+      z-index: 1000;
+      max-width: 250px;
+      font-family: sans-serif;
+    }
+  </style>
 </head>
 <body>
 
-<div class="container">
-  <div id="map"></div>
-  <div class="info">
-    <h2>Info do Concelho</h2>
-    <div id="infoContent">
-      Clique num concelho para gerar um PDF com o nome do concelho.
-    </div>
-  </div>
-</div>
+<div id="map"></div>
+<div id="infoBox"><div id="infoContent">Clique num concelho</div></div>
 
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const { jsPDF } = window.jspdf;
+  // Inicializar mapa
+  const map = L.map('map').setView([39.5, -8], 7);
 
-// Inicializar mapa
-const map = L.map('map', { zoomControl: true, attributionControl: false })
-  .setView([39.5, -8], 7);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
 
-// Função para gerar PDF
-function gerarPDF(info) {
-  const doc = new jsPDF();
-  doc.setFontSize(22);
-  doc.text(`Documento do concelho de ${info.nome}`, 20, 30);
-  doc.setFontSize(14);
-  doc.text(`Distrito: ${info.distrito}`, 20, 50);
-  doc.text(`Código: ${info.codigo}`, 20, 60);
-  doc.text(`Ano: ${info.ano}`, 20, 70);
-  doc.text(`Tipo: ${info.tipo}`, 20, 80);
-  doc.save(`Concelho_${info.nome}.pdf`);
-}
+  // Grupo para todos os concelhos
+  const concelhosGroup = L.featureGroup().addTo(map);
 
-// Carregar todos os concelhos via exports (JSON completo)
-fetch('https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/georef-portugal-concelho/exports/json')
-  .then(res => res.json())
-  .then(data => {
-    data.forEach(item => {
-      if(!item?.geometry) return;
+  // Fetch dos concelhos direto da API Opendatasoft
+  fetch('https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/georef-portugal-concelho/exports/json')
+    .then(res => res.json())
+    .then(data => {
+      data.forEach(item => {
+        if (!item?.geometry) return; // Pular sem geometria
 
-      const feature = {
-        type: "Feature",
-        properties: {
-          nome: item.fields.nome,
-          codigo: item.fields.codigo,
-          distrito: item.fields.distrito,
-          ano: item.fields.ano,
-          tipo: item.fields.tipo
-        },
-        geometry: item.geometry
-      };
+        const feature = {
+          type: "Feature",
+          properties: {
+            nome: item.fields.nome,
+            codigo: item.fields.codigo,
+            distrito: item.fields.distrito,
+            ano: item.fields.ano,
+            tipo: item.fields.tipo
+          },
+          geometry: item.geometry
+        };
 
-      L.geoJSON(feature, {
-        style: () => ({
-          color: '#556',
-          weight: 1,
-          fillColor: '#ccc',
-          fillOpacity: 0.6
-        }),
-        onEachFeature: (feature, layer) => {
-          layer.on('click', () => {
-            const info = feature.properties;
-            const content = `
-              <strong>Nome Concelho:</strong> ${info.nome}<br>
-              <strong>Distrito:</strong> ${info.distrito}<br>
-              <strong>Código:</strong> ${info.codigo}<br>
-              <strong>Ano:</strong> ${info.ano}<br>
-              <strong>Tipo:</strong> ${info.tipo}
-            `;
-            document.getElementById('infoContent').innerHTML = content;
-            gerarPDF(info);
-          });
+        const layer = L.geoJSON(feature, {
+          style: () => ({
+            color: '#556',
+            weight: 1,
+            fillColor: '#ccc',
+            fillOpacity: 0.6
+          }),
+          onEachFeature: (feature, layer) => {
+            layer.on('click', () => {
+              const info = feature.properties;
+              document.getElementById('infoContent').innerHTML = `
+                <strong>Nome:</strong> ${info.nome}<br>
+                <strong>Distrito:</strong> ${info.distrito}<br>
+                <strong>Código:</strong> ${info.codigo}<br>
+                <strong>Ano:</strong> ${info.ano}<br>
+                <strong>Tipo:</strong> ${info.tipo}
+              `;
+            });
+            layer.on('mouseover', () => layer.setStyle({ fillColor: '#ffa' }));
+            layer.on('mouseout', () => layer.setStyle({ fillColor: '#ccc' }));
+          }
+        });
 
-          layer.on('mouseover', () => layer.setStyle({ fillColor: '#faa', weight: 2 }));
-          layer.on('mouseout', () => layer.setStyle({ fillColor: '#ccc', weight: 1 }));
-        }
-      }).addTo(map);
-    });
-  })
-  .catch(err => console.error('Erro:', err));
+        concelhosGroup.addLayer(layer);
+      });
+
+      // Ajustar zoom para todos os concelhos
+      if (concelhosGroup.getLayers().length) {
+        map.fitBounds(concelhosGroup.getBounds());
+      }
+    })
+    .catch(err => console.error('Erro ao carregar concelhos:', err));
+
 </script>
+
 </body>
 </html>
