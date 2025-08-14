@@ -32,16 +32,17 @@
 fetch('concelhos.json')
   .then(res => res.json())
   .then(data => {
-    data.features.forEach(feature => {
+    data.geometries.forEach((geom, i) => {
+      const feature = {
+        type: "Feature",
+        properties: { name: `Concelho ${i+1}` }, // fallback name
+        geometry: geom
+      };
+
       L.geoJSON(feature, {
-        style: () => ({ 
-          color: '#556',
-          weight: 1, 
-          fillColor: '#ccc',
-          fillOpacity: 0.6 
-        }),
+        style: () => ({ color: '#556', weight: 1, fillColor: '#ccc', fillOpacity: 0.6 }),
         onEachFeature: (feature, layer) => {
-          // Clique
+          // Click
           layer.on('click', () => {
             const nome = feature.properties.name;
             const doc = new jsPDF();
@@ -53,17 +54,12 @@ fetch('concelhos.json')
           });
 
           // Hover
-          layer.on('mouseover', () => {
-            layer.setStyle({ fillColor: '#faa', weight: 2 });
-          });
-          layer.on('mouseout', () => {
-            layer.setStyle({ fillColor: '#ccc', weight: 1 });
-          });
+          layer.on('mouseover', () => layer.setStyle({ fillColor: '#faa', weight: 2 }));
+          layer.on('mouseout', () => layer.setStyle({ fillColor: '#ccc', weight: 1 }));
         }
       }).addTo(map);
     });
   })
-  .catch(err => console.error('Erro ao carregar concelhos.json:', err));
-
+  .catch(err => console.error(err));
 </body>
 </html>
