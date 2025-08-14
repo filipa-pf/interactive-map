@@ -94,6 +94,7 @@ async function loadConcelhos() {
     const data = await res.json();
 
     const geojsonData = data.map(d => {
+      console.log('Concelho:', d.con_name, '| Distrito:', d.dis_name); // <-- log names here
       const feature = d.geo_shape;
       feature.properties = {
         con_name: d.con_name,
@@ -136,16 +137,14 @@ async function loadConcelhos() {
       }
     }).addTo(map);
 
-    // Garantir que todo o mapa (Portugal continental + ilhas) ocupa o container
     const bounds = geojsonLayer.getBounds();
     if (bounds.isValid && bounds.isValid()) {
       map.fitBounds(bounds, {
-        padding: [20, 20], // espaço nas bordas
-        maxZoom: 10        // evita zoom demasiado próximo
+        padding: [20, 20],
+        maxZoom: 10
       });
     }
 
-    // Recalcular quando a janela muda de tamanho
     window.addEventListener('resize', () => {
       map.fitBounds(bounds, {
         padding: [20, 20],
@@ -157,6 +156,7 @@ async function loadConcelhos() {
     console.error('Erro ao carregar concelhos:', err);
   }
 }
+
 
 loadConcelhos();
 </script>
