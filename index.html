@@ -5,7 +5,6 @@
 <title>Mapa Interativo de Portugal</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 <style>
-/* Container flexível para mapa + info */
 body {
   margin: 0;
   font-family: sans-serif;
@@ -13,12 +12,12 @@ body {
 
 .container {
   display: flex;
-  flex-wrap: wrap; /* Permite quebrar para linhas menores */
+  flex-wrap: wrap; /* Permite que elementos quebrem linha */
 }
 
 /* Mapa e sidebar lado a lado em telas grandes */
 #map {
-  flex: 2; /* ocupa mais espaço */
+  flex: 2;
   min-width: 300px;
   height: 600px;
 }
@@ -30,20 +29,20 @@ body {
   box-sizing: border-box;
 }
 
-/* Estilos responsivos */
-@media (max-width: 900px) {
+/* Mobile: mapa em cima, info embaixo */
+@media (max-width: 768px) {
   #map, .info {
-    flex: 1 1 100%; /* Ambos ocupam 100% da largura */
-    height: 400px; /* reduz a altura do mapa em telas menores */
+    flex: 1 1 100%; /* ambos ocupam 100% da largura */
+    height: 400px;   /* altura menor para mobile */
   }
   .info {
     padding: 10px;
   }
 }
 
-@media (max-width: 500px) {
+@media (max-width: 480px) {
   #map {
-    height: 300px; /* ainda mais compacto em celular */
+    height: 300px; /* ainda mais compacto */
   }
   .info {
     padding: 5px;
