@@ -99,27 +99,9 @@ function escurecerCor(cor, fator = 0.7) {
   const rgb = cor.match(/\w\w/g).map(x => parseInt(x, 16));
   const escuro = rgb.map(v => Math.floor(v * fator));
   return `rgb(${escuro.join(",")})`;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 }
 
 async function loadConcelhos() {
-
-
-
   try {
     const res = await fetch('https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/georef-portugal-concelho/exports/json');
     const data = await res.json();
@@ -133,12 +115,6 @@ async function loadConcelhos() {
         dis_name: d.dis_name
       };
       return feature;
-
-
-
-
-
-
     });
 
     const geojsonLayer = L.geoJSON(geojsonData, {
@@ -189,47 +165,6 @@ async function loadConcelhos() {
         maxZoom: 10
       });
     });
-
-    // -------------------------------
-    // Inset maps for Açores and Madeira
-    // -------------------------------
-    function createInsetMap(position, center, zoom, distrito) {
-      const InsetControl = L.Control.extend({
-        onAdd: function() {
-          const div = L.DomUtil.create('div', 'inset-map');
-          return div;
-        },
-        options: { position }
-      });
-
-      const control = new InsetControl();
-      control.addTo(map);
-
-      const inset = L.map(control.getContainer(), {
-        attributionControl: false,
-        zoomControl: false,
-        dragging: false,
-        scrollWheelZoom: false,
-        doubleClickZoom: false,
-        boxZoom: false,
-        keyboard: false,
-        tap: false
-      }).setView(center, zoom);
-
-      // add simple tile layer
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: ''
-      }).addTo(inset);
-
-      return inset;
-    }
-
-    // Azores inset
-    createInsetMap('topright', [38.5, -28], 7, 'Açores');
-
-    // Madeira inset
-    createInsetMap('bottomright', [32.75, -17], 8, 'Madeira');
-
   } catch(err) {
     console.error('Erro ao carregar concelhos:', err);
   }
