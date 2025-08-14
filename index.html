@@ -39,16 +39,6 @@ html, body {
   cursor: pointer;
 }
 
-/* inset maps */
-.inset-map {
-  width: 150px;
-  height: 120px;
-  border: 2px solid #333;
-  border-radius: 4px;
-  overflow: hidden;
-  background: #fff;
-}
-
 /* MOBILE */
 @media (max-width: 768px) {
   .container { flex-direction: column !important; }
@@ -74,8 +64,10 @@ html, body {
 <script>
 const { jsPDF } = window.jspdf;
 
+// Inicializa mapa sem tiles
 const map = L.map('map', { zoomControl: true, attributionControl: false }).setView([39.5, -8], 7);
 
+// Cores por distrito
 const coresDistritos = {
   "Braga": "#f94144",
   "Porto": "#f3722c",
@@ -95,46 +87,47 @@ const coresDistritos = {
   "Madeira": "#e67e22"
 };
 
+// Escurecer cor
 function escurecerCor(cor, fator = 0.7) {
   const rgb = cor.match(/\w\w/g).map(x => parseInt(x, 16));
   const escuro = rgb.map(v => Math.floor(v * fator));
   return `rgb(${escuro.join(",")})`;
 }
 
-// Função para deslocar e aumentar as ilhas
+// Deslocar ilhas mantendo a geometria correta
 function deslocarIlhas(feature) {
   const distrito = feature.properties.dis_name || '';
 
-  if (distrito === 'Madeira') {
-    const offset = [5.5, -7]; // longitude e latitude aproximadas para aproximar do continente
-    feature.geometry.coordinates = feature.geometry.coordinates.map(ring =>
-      ring.map(coord => [coord[0] + offset[0], coord[1] + offset[1]])
-    );
+  const offsetMadeira = [5.5, -7];
+  const offsetAcores = [3, -7];
+
+  function deslocaCoords(coords, offset) {
+    // coords pode ser Polygon ou MultiPolygon
+    if (typeof coords[0][0] === "number") {
+      return coords.map(coord => [coord[0] + offset[0], coord[1] + offset[1]]);
+    } else {
+      return coords.map(ring => deslocaCoords(ring, offset));
+    }
   }
 
-  if (distrito === 'Açores') {
-    const offset = [3, -7]; // aproxima os Açores do continente
-    feature.geometry.coordinates = feature.geometry.coordinates.map(ring =>
-      ring.map(coord => [coord[0] + offset[0], coord[1] + offset[1]])
-    );
-  }
+  if (distrito === 'Madeira') feature.geometry.coordinates = deslocaCoords(feature.geometry.coordinates, offsetMadeira);
+  if (distrito === 'Açores') feature.geometry.coordinates = deslocaCoords(feature.geometry.coordinates, offsetAcores);
 
   return feature;
 }
 
+// Carregar concelhos
 async function loadConcelhos() {
   try {
     const res = await fetch('https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/georef-portugal-concelho/exports/json');
     const data = await res.json();
 
-geojsonData = data.map(d => {
-  const feature = d.geo_shape;
-  feature.properties = { con_name: d.con_name, dis_name: d.dis_name };
-
-  deslocarIlhas(feature);
-
-  return feature;
-});
+    const geojsonData = data.map(d => {
+      const feature = d.geo_shape;
+      feature.properties = { con_name: d.con_name, dis_name: d.dis_name };
+      deslocarIlhas(feature);
+      return feature;
+    });
 
     const geojsonLayer = L.geoJSON(geojsonData, {
       style: feature => {
@@ -171,13 +164,9 @@ geojsonData = data.map(d => {
     }).addTo(map);
 
     const bounds = geojsonLayer.getBounds();
-    if (bounds.isValid && bounds.isValid()) {
-      map.fitBounds(bounds, { padding: [20, 20], maxZoom: 10 });
-    }
+    if (bounds.isValid && bounds.isValid()) map.fitBounds(bounds, { padding: [20, 20], maxZoom: 10 });
 
-    window.addEventListener('resize', () => {
-      map.fitBounds(bounds, { padding: [20, 20], maxZoom: 10 });
-    });
+    window.addEventListener('resize', () => map.fitBounds(bounds, { padding: [20, 20], maxZoom: 10 }));
   } catch(err) {
     console.error('Erro ao carregar concelhos:', err);
   }
