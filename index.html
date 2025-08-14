@@ -3,28 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <title>Mapa Interativo de Portugal</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
 html, body {
   height: 100%;
   margin: 0;
 }
-
 .container {
   display: flex;
   gap: 20px;
   padding: 10px;
   flex-wrap: wrap;
 }
-
 #map {
   flex: 2 1 300px;
   min-width: 300px;
   height: 600px;
-  background: #f0f0f0; /* mapa “em branco” */
 }
-
 .info {
   flex: 1 1 250px;
   min-width: 250px;
@@ -32,12 +27,7 @@ html, body {
   background: #f8f8f8;
   overflow-y: auto;
 }
-
-.concelho {
-  cursor: pointer;
-}
-
-/* MOBILE */
+.concelho { cursor: pointer; }
 @media (max-width: 768px) {
   .container { flex-direction: column !important; }
   #map { height: 300px !important; flex: none !important; }
@@ -62,41 +52,26 @@ html, body {
 <script>
 const { jsPDF } = window.jspdf;
 
-// Mapa sem tiles
-const map = L.map('map', { zoomControl: true, attributionControl: false }).setView([39.5, -8], 7);
+const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([39.5, -8], 7);
 
-// Cores por distrito
 const coresDistritos = {
-  "Braga": "#f94144",
-  "Porto": "#f3722c",
-  "Viana do Castelo": "#f8961e",
-  "Vila Real": "#f9c74f",
-  "Aveiro": "#90be6d",
-  "Coimbra": "#43aa8b",
-  "Leiria": "#577590",
-  "Lisboa": "#277da1",
-  "Setúbal": "#9d4edd",
-  "Évora": "#f72585",
-  "Beja": "#7209b7",
-  "Faro": "#3a0ca3",
-  "Castelo Branco": "#4361ee",
-  "Guarda": "#4cc9f0",
-  "Açores": "#00b894",
-  "Madeira": "#e67e22"
+  "Braga": "#f94144","Porto": "#f3722c","Viana do Castelo": "#f8961e","Vila Real": "#f9c74f",
+  "Aveiro": "#90be6d","Coimbra": "#43aa8b","Leiria": "#577590","Lisboa": "#277da1",
+  "Setúbal": "#9d4edd","Évora": "#f72585","Beja": "#7209b7","Faro": "#3a0ca3",
+  "Castelo Branco": "#4361ee","Guarda": "#4cc9f0","Açores": "#00b894","Madeira": "#e67e22"
 };
 
-// Função para escurecer cor
 function escurecerCor(cor, fator = 0.7) {
   const rgb = cor.match(/\w\w/g).map(x => parseInt(x, 16));
   const escuro = rgb.map(v => Math.floor(v * fator));
   return `rgb(${escuro.join(",")})`;
 }
 
-// Função para deslocar ilhas
-function deslocarCoordenadas(coords, deltaLng, deltaLat) {
+// Transformar e posicionar miniaturas das ilhas
+function transformarIlha(coords, escala=0.2, offset=[7, -2]) {
   return coords.map(p => Array.isArray(p[0])
-    ? deslocarCoordenadas(p, deltaLng, deltaLat)
-    : [p[0] + deltaLng, p[1] + deltaLat]
+    ? transformarIlha(p, escala, offset)
+    : [(p[0] * escala) + offset[0], (p[1] * escala) + offset[1]]
   );
 }
 
@@ -107,16 +82,14 @@ async function loadConcelhos() {
 
     const geojsonData = data.map(d => {
       const feature = d.geo_shape;
-      feature.properties = {
-        con_name: d.con_name,
-        dis_name: d.dis_name
-      };
+      feature.properties = { con_name: d.con_name, dis_name: d.dis_name };
 
-      // Deslocar Açores e Madeira
-      if (d.dis_name === "Açores") {
-        feature.geometry.coordinates = deslocarCoordenadas(feature.geometry.coordinates, -10, 4);
-      } else if (d.dis_name === "Madeira") {
-        feature.geometry.coordinates = deslocarCoordenadas(feature.geometry.coordinates, -9, -6);
+      // Miniaturas das ilhas
+      if (d.dis_name === 'Açores') {
+        feature.coordinates = transformarIlha(feature.coordinates, 0.25, [7, -2]);
+      }
+      if (d.dis_name === 'Madeira') {
+        feature.coordinates = transformarIlha(feature.coordinates, 0.25, [8, -3]);
       }
 
       return feature;
@@ -125,12 +98,7 @@ async function loadConcelhos() {
     const geojsonLayer = L.geoJSON(geojsonData, {
       style: feature => {
         const distrito = feature.properties.dis_name || '';
-        return { 
-          color: '#000', 
-          weight: 1, 
-          fillOpacity: 0.6,
-          fillColor: coresDistritos[distrito] || '#ccc'
-        };
+        return { color: '#000', weight: 1, fillOpacity: 0.6, fillColor: coresDistritos[distrito] || '#ccc' };
       },
       onEachFeature: (feature, layer) => {
         const nome = feature.properties.con_name || 'Sem nome';
@@ -155,17 +123,13 @@ async function loadConcelhos() {
       }
     }).addTo(map);
 
-    // Ajustar fitBounds apenas para o continente
-    const continenteLayer = geojsonLayer.getLayers().filter(l => {
-      const distrito = l.feature.properties.dis_name;
-      return distrito !== "Açores" && distrito !== "Madeira";
-    });
-    const boundsContinente = L.featureGroup(continenteLayer).getBounds();
-    map.fitBounds(boundsContinente, { padding: [20,20], maxZoom: 10 });
+    // Ajustar bounds apenas ao continente
+    const continente = geojsonData.filter(f => !['Açores', 'Madeira'].includes(f.properties.dis_name));
+    const continenteLayer = L.geoJSON(continente);
+    const bounds = continenteLayer.getBounds();
+    map.fitBounds(bounds, { padding: [20, 20], maxZoom: 10 });
 
-    window.addEventListener('resize', () => {
-      map.fitBounds(boundsContinente, { padding: [20,20], maxZoom: 10 });
-    });
+    window.addEventListener('resize', () => map.fitBounds(bounds, { padding: [20, 20], maxZoom: 10 }));
 
   } catch(err) {
     console.error('Erro ao carregar concelhos:', err);
