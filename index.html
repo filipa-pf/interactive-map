@@ -42,17 +42,18 @@ html, body {
 /* Ajustes para mobile */
 @media (max-width: 768px) {
   .container {
-    flex-direction: column; /* força coluna em vez de linha */
+    flex-direction: column !important; /* força a coluna */
+    height: auto; /* permite que a altura seja natural */
+  }
+
+  #map,
+  .info {
+    width: 100% !important; /* força a largura completa */
+    flex: none; /* remove o flex original */
   }
 
   #map {
-    width: 100%;
-    height: 300px; /* altura menor para mobile */
-  }
-
-  .info {
-    width: 100%;
-    padding: 15px;
+    height: 300px; /* altura do mapa no mobile */
   }
 }
 </style>
